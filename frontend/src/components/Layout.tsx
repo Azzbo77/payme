@@ -70,16 +70,14 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen">
       <header className="sticky top-0 z-40 bg-sand-50/80 dark:bg-charcoal-950/80 backdrop-blur-md border-b border-sand-200 dark:border-charcoal-800">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-xl font-semibold tracking-tight text-charcoal-800 dark:text-sand-100">
-              payme
+          <span className="text-xl font-semibold tracking-tight text-charcoal-800 dark:text-sand-100">
+            payme
+          </span>
+          {user && (
+            <span className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Welcome, {user.username}
             </span>
-            {user && (
-              <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
-                {user.username}
-              </span>
-            )}
-          </div>
+          )}
           <div className="flex items-center gap-2">
             {user && (
               <>
