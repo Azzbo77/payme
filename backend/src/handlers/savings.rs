@@ -10,12 +10,19 @@ use crate::middleware::auth::Claims;
 #[derive(Serialize, ToSchema)]
 pub struct SavingsResponse {
     pub savings: f64,
+    pub savings_goal: f64,
 }
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct UpdateSavings {
     #[validate(range(min = 0.0))]
     pub savings: f64,
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct UpdateSavingsGoal {
+    #[validate(range(min = 0.0))]
+    pub savings_goal: f64,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -44,12 +51,16 @@ pub async fn get_savings(
     State(pool): State<SqlitePool>,
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<SavingsResponse>, PaymeError> {
-    let savings: f64 = sqlx::query_scalar("SELECT savings FROM users WHERE id = ?")
-        .bind(claims.sub)
-        .fetch_one(&pool)
-        .await?;
+    let (savings, savings_goal): (f64, f64) =
+        sqlx::query_as("SELECT savings, savings_goal FROM users WHERE id = ?")
+            .bind(claims.sub)
+            .fetch_one(&pool)
+            .await?;
 
-    Ok(Json(SavingsResponse { savings }))
+    Ok(Json(SavingsResponse {
+        savings,
+        savings_goal,
+    }))
 }
 
 #[utoipa::path(
@@ -76,8 +87,49 @@ pub async fn update_savings(
         .execute(&pool)
         .await?;
 
+    let savings_goal: f64 = sqlx::query_scalar("SELECT savings_goal FROM users WHERE id = ?")
+        .bind(claims.sub)
+        .fetch_one(&pool)
+        .await?;
+
     Ok(Json(SavingsResponse {
         savings: payload.savings,
+        savings_goal,
+    }))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/savings/goal",
+    request_body = UpdateSavingsGoal,
+    responses(
+        (status = 200, body = SavingsResponse),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Wealth",
+    summary = "Update savings goal",
+    description = "Sets a new target goal for the user's savings."
+)]
+pub async fn update_savings_goal(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Json(payload): Json<UpdateSavingsGoal>,
+) -> Result<Json<SavingsResponse>, PaymeError> {
+    payload.validate()?;
+    sqlx::query("UPDATE users SET savings_goal = ? WHERE id = ?")
+        .bind(payload.savings_goal)
+        .bind(claims.sub)
+        .execute(&pool)
+        .await?;
+
+    let savings: f64 = sqlx::query_scalar("SELECT savings FROM users WHERE id = ?")
+        .bind(claims.sub)
+        .fetch_one(&pool)
+        .await?;
+
+    Ok(Json(SavingsResponse {
+        savings,
+        savings_goal: payload.savings_goal,
     }))
 }
 

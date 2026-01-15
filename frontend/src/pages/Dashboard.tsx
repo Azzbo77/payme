@@ -67,7 +67,6 @@ export function Dashboard({ onSettingsClick }: DashboardProps) {
           <div className="w-full sm:w-80">
             <SavingsCard 
               remaining={summary.remaining}
-              onAnalyzeClick={() => setShowVarianceModal(true)}
             />
           </div>
           <div className="hidden lg:block">

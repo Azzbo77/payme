@@ -10,17 +10,16 @@ import { Button } from "./ui/Button";
 interface SavingsCardProps {
   onSavingsChange?: (savings: number) => void;
   remaining: number;
-  onAnalyzeClick?: () => void;
 }
 
-export function SavingsCard({ onSavingsChange, remaining, onAnalyzeClick }: SavingsCardProps) {
+export function SavingsCard({ onSavingsChange, remaining }: SavingsCardProps) {
   const [savings, setSavings] = useState<number>(0);
   const [savingsGoal, setSavingsGoal] = useState<number>(0);
   const [isEditing, setIsEditing] = useState(false);
-  const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [editValue, setEditValue] = useState("");
   const [editGoalValue, setEditGoalValue] = useState("");
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
 
   useEffect(() => {
     api.savings.get().then((res) => {
@@ -49,7 +48,25 @@ export function SavingsCard({ onSavingsChange, remaining, onAnalyzeClick }: Savi
     setIsEditing(false);
   };
 
-  const target = savings + remaining;
+  const startEditGoal = () => {
+    setEditGoalValue(savingsGoal.toString());
+    setIsEditingGoal(true);
+  };
+
+  const cancelEditGoal = () => {
+    setIsEditingGoal(false);
+    setEditGoalValue("");
+  };
+
+  const saveEditGoal = async () => {
+    const value = parseFloat(editGoalValue);
+    if (isNaN(value) || value < 0) return;
+    await api.savings.updateGoal(value);
+    setSavingsGoal(value);
+    setIsEditingGoal(false);
+  };
+
+  const target = savingsGoal > 0 ? savingsGoal : savings + remaining;
   const percentage = target > 0 ? (savings / target) * 100 : 0;
   const difference = savings - target;
   const isAhead = difference >= 0;
