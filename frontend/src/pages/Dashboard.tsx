@@ -4,6 +4,7 @@ import { MonthNav } from "../components/MonthNav";
 import { Summary } from "../components/Summary";
 import { SavingsCard } from "../components/SavingsCard";
 import { RetirementSavingsCard } from "../components/RetirementSavingsCard";
+import { CustomSavingsGoals } from "../components/CustomSavingsGoals";
 import { VarianceModal } from "../components/VarianceModal";
 import { IncomeSection } from "../components/IncomeSection";
 import { FixedExpenses } from "../components/FixedExpenses";
@@ -83,6 +84,8 @@ export function Dashboard({ onSettingsClick }: DashboardProps) {
           remaining={summary.remaining}
           extraCard={<RetirementSavingsCard />}
         />
+
+        <CustomSavingsGoals />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <IncomeSection

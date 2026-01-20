@@ -2,18 +2,28 @@ interface ProgressBarProps {
   value: number;
   max: number;
   showOverage?: boolean;
+  invertColors?: boolean;
 }
 
-export function ProgressBar({ value, max, showOverage = true }: ProgressBarProps) {
+export function ProgressBar({ value, max, showOverage = true, invertColors = false }: ProgressBarProps) {
   const percentage = max > 0 ? (value / max) * 100 : 0;
   const isOver = value > max;
   const overage = value - max;
 
   const getColor = () => {
-    if (percentage >= 100) return "bg-terracotta-500";
-    if (percentage >= 80) return "bg-terracotta-400";
-    if (percentage >= 50) return "bg-sand-500";
-    return "bg-sage-500";
+    if (invertColors) {
+      // Green for high progress (savings goals)
+      if (percentage >= 100) return "bg-sage-500";
+      if (percentage >= 80) return "bg-sage-500";
+      if (percentage >= 50) return "bg-sand-500";
+      return "bg-terracotta-500";
+    } else {
+      // Red for high usage (spending)
+      if (percentage >= 100) return "bg-terracotta-500";
+      if (percentage >= 80) return "bg-terracotta-400";
+      if (percentage >= 50) return "bg-sand-500";
+      return "bg-sage-500";
+    }
   };
 
   return (
