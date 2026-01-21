@@ -65,16 +65,8 @@ export function Dashboard({ onSettingsClick }: DashboardProps) {
           onClose={closeMonth}
           onDownloadPdf={downloadPdf}
         />
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-          <div className="w-full sm:w-80">
-            <SavingsCard 
-              remaining={summary.remaining}
-              refreshTrigger={refreshTrigger}
-            />
-          </div>
-          <div className="hidden lg:block">
-            <Stats />
-          </div>
+        <div className="hidden lg:flex justify-end">
+          <Stats />
         </div>
       </div>
 
@@ -87,7 +79,13 @@ export function Dashboard({ onSettingsClick }: DashboardProps) {
           extraCard={<RetirementSavingsCard refreshTrigger={refreshTrigger} />}
         />
 
-        <CustomSavingsGoals />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SavingsCard 
+            remaining={summary.remaining}
+            refreshTrigger={refreshTrigger}
+          />
+          <CustomSavingsGoals />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <IncomeSection

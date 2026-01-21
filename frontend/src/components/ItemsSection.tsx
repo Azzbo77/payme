@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Eye, EyeOff } from "lucide-react";
 import { ItemWithCategory, BudgetCategory, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -30,6 +30,7 @@ export function ItemsSection({
   const [categoryId, setCategoryId] = useState<string>("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
   const [savingsDestination, setSavingsDestination] = useState("none");
+  const [showDestination, setShowDestination] = useState(true);
 
   const handleAdd = async () => {
     if (!description || !amount || !categoryId) return;
@@ -97,7 +98,7 @@ export function ItemsSection({
                 setCategoryId(categories[0].id.toString());
               }
             }}
-            className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
+            className="p-2 md:p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
           >
             <Plus size={16} />
           </button>
@@ -105,7 +106,7 @@ export function ItemsSection({
       </div>
 
       {isAdding && categories.length === 0 && (
-        <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800 text-center">
+        <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800 text-center rounded-lg">
           <p className="text-sm text-charcoal-600 dark:text-charcoal-300 mb-1">
             No budget categories yet.
           </p>
@@ -114,7 +115,7 @@ export function ItemsSection({
           </p>
           <button
             onClick={resetForm}
-            className="mt-3 text-xs text-charcoal-500 hover:text-charcoal-700 dark:hover:text-charcoal-300"
+            className="mt-3 px-4 py-2 text-xs text-charcoal-500 hover:text-charcoal-700 dark:hover:text-charcoal-300 hover:bg-sand-200 dark:hover:bg-charcoal-700 active:bg-sand-300 dark:active:bg-charcoal-600 transition-colors rounded touch-manipulation"
           >
             Close
           </button>
@@ -175,33 +176,42 @@ export function ItemsSection({
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto -mx-4 px-4">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-sand-300 dark:border-charcoal-700">
-              <th className="text-left py-2 font-medium text-charcoal-600 dark:text-sand-400">
+              <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
                 Date
               </th>
-              <th className="text-left py-2 font-medium text-charcoal-600 dark:text-sand-400">
+              <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
                 Description
               </th>
-              <th className="text-left py-2 font-medium text-charcoal-600 dark:text-sand-400">
+              <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
                 Category
               </th>
-              <th className="text-right py-2 font-medium text-charcoal-600 dark:text-sand-400">
+              <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
                 Amount
               </th>
-              <th className="text-center py-2 font-medium text-charcoal-600 dark:text-sand-400">
-                Destination
+              <th className="text-center py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                <div className="flex items-center justify-center gap-1">
+                  {showDestination && <span className="hidden sm:inline">Destination</span>}
+                  <button
+                    onClick={() => setShowDestination(!showDestination)}
+                    className="p-2 md:p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+                    title={showDestination ? "Hide destination column" : "Show destination column"}
+                  >
+                    {showDestination ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </button>
+                </div>
               </th>
-              {!isReadOnly && <th className="w-20"></th>}
+              {!isReadOnly && <th className="w-16 md:w-20"></th>}
             </tr>
           </thead>
           <tbody>
             {items.map((item) => (
               <tr
                 key={item.id}
-                className="border-b border-sand-200 dark:border-charcoal-800 hover:bg-sand-100 dark:hover:bg-charcoal-900/50"
+                className="border-b border-sand-200 dark:border-charcoal-800 hover:bg-sand-100 dark:hover:bg-charcoal-900/50 active:bg-sand-200 dark:active:bg-charcoal-900 transition-colors"
               >
                 {editingId === item.id ? (
                   <>
@@ -238,29 +248,31 @@ export function ItemsSection({
                         className="text-xs text-right"
                       />
                     </td>
+                    {showDestination && (
+                      <td className="py-2">
+                        <Select
+                          options={[
+                            { value: "none", label: "Spent" },
+                            { value: "savings", label: "Savings" },
+                            { value: "retirement_savings", label: "Retirement" },
+                          ]}
+                          value={savingsDestination}
+                          onChange={(e) => setSavingsDestination(e.target.value)}
+                          className="text-xs"
+                        />
+                      </td>
+                    )}
                     <td className="py-2">
-                      <Select
-                        options={[
-                          { value: "none", label: "Spent" },
-                          { value: "savings", label: "Savings" },
-                          { value: "retirement_savings", label: "Retirement" },
-                        ]}
-                        value={savingsDestination}
-                        onChange={(e) => setSavingsDestination(e.target.value)}
-                        className="text-xs"
-                      />
-                    </td>
-                    <td className="py-2">
-                      <div className="flex gap-1 justify-end">
+                      <div className="flex gap-0.5 md:gap-1 justify-end">
                         <button
                           onClick={() => handleUpdate(item.id)}
-                          className="p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800"
+                          className="p-2 md:p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 active:bg-sage-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
                         >
                           <Check size={14} />
                         </button>
                         <button
                           onClick={resetForm}
-                          className="p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800"
+                          className="p-2 md:p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
                         >
                           <X size={14} />
                         </button>
@@ -269,53 +281,58 @@ export function ItemsSection({
                   </>
                 ) : (
                   <>
-                    <td className="py-2 text-charcoal-600 dark:text-charcoal-400">
-                      {item.spent_on}
+                    <td className="py-2 px-1 text-charcoal-600 dark:text-charcoal-400 text-xs md:text-sm whitespace-nowrap">
+                      <span className="hidden md:inline">{item.spent_on}</span>
+                      <span className="md:hidden">{item.spent_on.slice(5)}</span>
                     </td>
-                    <td className="py-2 text-charcoal-800 dark:text-sand-200">
-                      {item.description}
+                    <td className="py-2 px-1 text-charcoal-800 dark:text-sand-200 text-xs md:text-sm">
+                      <div className="max-w-[120px] md:max-w-none truncate">
+                        {item.description}
+                      </div>
                     </td>
-                    <td className="py-2">
-                      <span className="text-xs px-2 py-1 bg-sand-200 dark:bg-charcoal-800 text-charcoal-600 dark:text-sand-400">
+                    <td className="py-2 px-1">
+                      <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-sand-200 dark:bg-charcoal-800 text-charcoal-600 dark:text-sand-400 whitespace-nowrap">
                         {item.category_label}
                       </span>
                     </td>
-                    <td className={`py-2 text-right font-medium ${item.savings_destination === "none"
+                    <td className={`py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap ${item.savings_destination === "none"
                         ? 'text-terracotta-600 dark:text-terracotta-400'
                         : 'text-sage-600 dark:text-sage-400'
                       }`}>
                       {item.savings_destination !== "none" && '→ '}
                       {formatCurrency(item.amount)}
                     </td>
-                    <td className="py-2 text-center">
-                      {item.savings_destination === "none" && (
-                        <span className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200">
-                          Spent
-                        </span>
-                      )}
-                      {item.savings_destination === "savings" && (
-                        <span className="text-xs px-2 py-1 rounded bg-sage-100 dark:bg-sage-900 text-sage-700 dark:text-sage-200">
-                          Savings
-                        </span>
-                      )}
-                      {item.savings_destination === "retirement_savings" && (
-                        <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
-                          Retirement
-                        </span>
-                      )}
-                    </td>
+                    {showDestination && (
+                      <td className="py-2 px-1 text-center">
+                        {item.savings_destination === "none" && (
+                          <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 whitespace-nowrap">
+                            Spent
+                          </span>
+                        )}
+                        {item.savings_destination === "savings" && (
+                          <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded bg-sage-100 dark:bg-sage-900 text-sage-700 dark:text-sage-200 whitespace-nowrap">
+                            Savings
+                          </span>
+                        )}
+                        {item.savings_destination === "retirement_savings" && (
+                          <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 whitespace-nowrap">
+                            Retirement
+                          </span>
+                        )}
+                      </td>
+                    )}
                     {!isReadOnly && (
-                      <td className="py-2">
-                        <div className="flex gap-1 justify-end">
+                      <td className="py-2 px-1">
+                        <div className="flex gap-0.5 md:gap-1 justify-end">
                           <button
                             onClick={() => startEdit(item)}
-                            className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800"
+                            className="p-2 md:p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
                           >
                             <Edit2 size={14} />
                           </button>
                           <button
                             onClick={() => handleDelete(item.id)}
-                            className="p-1 text-terracotta-500 hover:bg-terracotta-100 dark:hover:bg-charcoal-800"
+                            className="p-2 md:p-1 text-terracotta-500 hover:bg-terracotta-100 dark:hover:bg-charcoal-800 active:bg-terracotta-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
                           >
                             <Trash2 size={14} />
                           </button>
