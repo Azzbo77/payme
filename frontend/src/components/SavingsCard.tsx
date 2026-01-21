@@ -11,10 +11,10 @@ import { useCurrency } from "../context/CurrencyContext";
 interface SavingsCardProps {
   onSavingsChange?: (savings: number) => void;
   remaining: number;
+  refreshTrigger?: number;
 }
 
-export function SavingsCard({ onSavingsChange, remaining }: SavingsCardProps) {
-  const { formatCurrency } = useCurrency();
+export function SavingsCard({ onSavingsChange, remaining, refreshTrigger }: SavingsCardProps) {
   const [savings, setSavings] = useState<number>(0);
   const [savingsGoal, setSavingsGoal] = useState<number>(0);
   const [isEditing, setIsEditing] = useState(false);
@@ -23,13 +23,15 @@ export function SavingsCard({ onSavingsChange, remaining }: SavingsCardProps) {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [isEditingGoal, setIsEditingGoal] = useState(false);
 
+  const { formatCurrency } = useCurrency();
+
   useEffect(() => {
     api.savings.get().then((res) => {
       setSavings(res.savings);
       setSavingsGoal(res.savings_goal);
       onSavingsChange?.(res.savings);
     });
-  }, [onSavingsChange]);
+  }, [onSavingsChange, refreshTrigger]);
 
   const startEdit = () => {
     setEditValue(savings.toString());

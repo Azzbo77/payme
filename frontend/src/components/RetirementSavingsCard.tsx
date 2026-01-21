@@ -5,15 +5,16 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { useCurrency } from "../context/CurrencyContext";
 
-export function RetirementSavingsCard() {
-  const { formatCurrency } = useCurrency();
+export function RetirementSavingsCard({ refreshTrigger }: { refreshTrigger?: number }) {
   const [amount, setAmount] = useState<number>(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
 
+  const { formatCurrency } = useCurrency();
+
   useEffect(() => {
     api.retirementSavings.get().then((res) => setAmount(res.retirement_savings));
-  }, []);
+  }, [refreshTrigger]);
 
   const startEdit = () => {
     setEditValue(amount.toString());
@@ -81,4 +82,3 @@ export function RetirementSavingsCard() {
     </Card>
   );
 }
-

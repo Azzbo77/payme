@@ -29,6 +29,7 @@ export function ItemsSection({
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
+  const [savingsDestination, setSavingsDestination] = useState("none");
 
   const handleAdd = async () => {
     if (!description || !amount || !categoryId) return;
@@ -37,6 +38,7 @@ export function ItemsSection({
       amount: parseFloat(amount),
       category_id: parseInt(categoryId),
       spent_on: spentOn,
+      savings_destination: savingsDestination,
     });
     resetForm();
     await onUpdate();
@@ -49,6 +51,7 @@ export function ItemsSection({
       amount: parseFloat(amount),
       category_id: parseInt(categoryId),
       spent_on: spentOn,
+      savings_destination: savingsDestination,
     });
     resetForm();
     await onUpdate();
@@ -65,6 +68,7 @@ export function ItemsSection({
     setAmount(item.amount.toString());
     setCategoryId(item.category_id.toString());
     setSpentOn(item.spent_on);
+    setSavingsDestination(item.savings_destination);
   };
 
   const resetForm = () => {
@@ -73,6 +77,7 @@ export function ItemsSection({
     setAmount("");
     setCategoryId("");
     setSpentOn(new Date().toISOString().split("T")[0]);
+    setSavingsDestination("none");
     setIsAdding(false);
   };
 
@@ -141,7 +146,23 @@ export function ItemsSection({
               onChange={(e) => setSpentOn(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 mb-3">
+            <div>
+              <label className="text-sm text-charcoal-700 dark:text-sand-300 mb-1 block">
+                Where should this money go?
+              </label>
+              <Select
+                options={[
+                  { value: "none", label: "Spent" },
+                  { value: "savings", label: "Savings" },
+                  { value: "retirement_savings", label: "Retirement Savings" },
+                ]}
+                value={savingsDestination}
+                onChange={(e) => setSavingsDestination(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd}>
               <Check size={16} className="mr-1" />
               Add
@@ -169,6 +190,9 @@ export function ItemsSection({
               </th>
               <th className="text-right py-2 font-medium text-charcoal-600 dark:text-sand-400">
                 Amount
+              </th>
+              <th className="text-center py-2 font-medium text-charcoal-600 dark:text-sand-400">
+                Destination
               </th>
               {!isReadOnly && <th className="w-20"></th>}
             </tr>
@@ -215,6 +239,18 @@ export function ItemsSection({
                       />
                     </td>
                     <td className="py-2">
+                      <Select
+                        options={[
+                          { value: "none", label: "Spent" },
+                          { value: "savings", label: "Savings" },
+                          { value: "retirement_savings", label: "Retirement" },
+                        ]}
+                        value={savingsDestination}
+                        onChange={(e) => setSavingsDestination(e.target.value)}
+                        className="text-xs"
+                      />
+                    </td>
+                    <td className="py-2">
                       <div className="flex gap-1 justify-end">
                         <button
                           onClick={() => handleUpdate(item.id)}
@@ -244,8 +280,29 @@ export function ItemsSection({
                         {item.category_label}
                       </span>
                     </td>
-                    <td className="py-2 text-right font-medium text-terracotta-600 dark:text-terracotta-400">
+                    <td className={`py-2 text-right font-medium ${item.savings_destination === "none"
+                        ? 'text-terracotta-600 dark:text-terracotta-400'
+                        : 'text-sage-600 dark:text-sage-400'
+                      }`}>
+                      {item.savings_destination !== "none" && '→ '}
                       {formatCurrency(item.amount)}
+                    </td>
+                    <td className="py-2 text-center">
+                      {item.savings_destination === "none" && (
+                        <span className="text-xs px-2 py-1 rounded bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200">
+                          Spent
+                        </span>
+                      )}
+                      {item.savings_destination === "savings" && (
+                        <span className="text-xs px-2 py-1 rounded bg-sage-100 dark:bg-sage-900 text-sage-700 dark:text-sage-200">
+                          Savings
+                        </span>
+                      )}
+                      {item.savings_destination === "retirement_savings" && (
+                        <span className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200">
+                          Retirement
+                        </span>
+                      )}
                     </td>
                     {!isReadOnly && (
                       <td className="py-2">
