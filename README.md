@@ -72,7 +72,7 @@ Export/import database via the UI download button or `/api/export` endpoint.
 
 ## OpenAPI Swagger endpoint
 
-To view all the api endpoints and schemas, go to: http://localhost:3001/swagger-ui
+To view all the api endpoints and schemas, go to: http://your-ip/swagger-ui
 
 ## Docker
 
