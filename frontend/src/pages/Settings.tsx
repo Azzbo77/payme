@@ -6,8 +6,9 @@ import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../context/CurrencyContext";
+import { useUIPreferences } from "../context/UIPreferencesContext";
 import { api } from "../api/client";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 
 interface SettingsProps {
   onBack: () => void;
@@ -16,6 +17,7 @@ interface SettingsProps {
 export function Settings({ onBack }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
+  const { transfersEnabled, setTransfersEnabled } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -32,6 +34,8 @@ export function Settings({ onBack }: SettingsProps) {
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [currencySuccess, setCurrencySuccess] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState(currency.code);
+  const [showTransfersModal, setShowTransfersModal] = useState(false);
+
 
   const handleChangeUsername = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,6 +154,47 @@ export function Settings({ onBack }: SettingsProps) {
               <Button onClick={handleSaveCurrency} disabled={selectedCurrency === currency.code}>
                 Save Currency
               </Button>
+            </div>
+          </div>
+
+          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Transferred Items
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Enable Transferred Items
+                    </label>
+                    <button
+                      onClick={() => setShowTransfersModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How to use transfers"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Allow adding, editing, and deleting transferred items
+                  </p>
+                </div>
+                <button
+                  onClick={() => setTransfersEnabled(!transfersEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    transfersEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      transfersEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -282,6 +327,58 @@ export function Settings({ onBack }: SettingsProps) {
               className="w-full sm:w-auto"
             >
               Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showTransfersModal} onClose={() => setShowTransfersModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Use Transferred Items
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What are transfers?</p>
+              <p>Track portions of your budgeted spending that you plan to transfer to savings or retirement accounts instead of spending.</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Enable/Disable behavior:</p>
+              <ul className="space-y-1">
+                <li><span className="font-medium">When enabled:</span> You can add, edit, and delete transfers.</li>
+                <li><span className="font-medium">When disabled:</span> View only. Card hides once all transfers are deleted.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">When to use transfers:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>You have extra budget left and want to save it</li>
+                <li>You want to contribute to retirement beyond regular deductions</li>
+                <li>You want to track discretionary savings separately</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How to add a transfer:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Open the "Transferred Items" card on the dashboard</li>
+                <li>Click the <span className="inline-block">+</span> button to create a transfer</li>
+                <li>Fill in the description, amount, and date</li>
+                <li>Choose the destination: Savings or Retirement</li>
+                <li>Click confirm</li>
+              </ol>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowTransfersModal(false)}
+              className="w-full"
+            >
+              Got it
             </Button>
           </div>
         </div>

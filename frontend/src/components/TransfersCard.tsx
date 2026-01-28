@@ -6,8 +6,9 @@ import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
 import { useCurrency } from "../context/CurrencyContext";
+import { useUIPreferences } from "../context/UIPreferencesContext";
 
-interface ItemsSectionProps {
+interface TransfersCardProps {
   monthId: number;
   items: ItemWithCategory[];
   categories: BudgetCategory[];
@@ -15,42 +16,51 @@ interface ItemsSectionProps {
   onUpdate: () => void;
 }
 
-export function ItemsSection({
+export function TransfersCard({
   monthId,
   items,
   categories,
   isReadOnly,
   onUpdate,
-}: ItemsSectionProps) {
+}: TransfersCardProps) {
   const { formatCurrency } = useCurrency();
+  const { transfersEnabled } = useUIPreferences();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState<string>("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
+  const [savingsDestination, setSavingsDestination] = useState("savings");
+
+  const transferItems = items.filter(
+    (item) =>
+      item.savings_destination === "savings" ||
+      item.savings_destination === "retirement_savings"
+  );
 
   const handleAdd = async () => {
-    if (!description || !amount || !categoryId) return;
+    if (!description || !amount) return;
+    const catId = categories.length > 0 ? categories[0].id : 1;
     await api.items.create(monthId, {
       description,
       amount: parseFloat(amount),
-      category_id: parseInt(categoryId),
+      category_id: catId,
       spent_on: spentOn,
-      savings_destination: "none",
+      savings_destination: savingsDestination,
     });
     resetForm();
     await onUpdate();
   };
 
   const handleUpdate = async (id: number) => {
-    if (!description || !amount || !categoryId) return;
+    if (!description || !amount) return;
+    const catId = categories.length > 0 ? categories[0].id : 1;
     await api.items.update(monthId, id, {
       description,
       amount: parseFloat(amount),
-      category_id: parseInt(categoryId),
+      category_id: catId,
       spent_on: spentOn,
-      savings_destination: "none",
+      savings_destination: savingsDestination,
     });
     resetForm();
     await onUpdate();
@@ -65,35 +75,29 @@ export function ItemsSection({
     setEditingId(item.id);
     setDescription(item.description);
     setAmount(item.amount.toString());
-    setCategoryId(item.category_id.toString());
     setSpentOn(item.spent_on);
+    setSavingsDestination(item.savings_destination);
   };
 
   const resetForm = () => {
     setEditingId(null);
     setDescription("");
     setAmount("");
-    setCategoryId("");
     setSpentOn(new Date().toISOString().split("T")[0]);
+    setSavingsDestination("savings");
     setIsAdding(false);
   };
-
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.label }));
-  const spendingItems = items.filter((item) => item.savings_destination === "none");
 
   return (
     <Card className="col-span-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-          Spending Items
+          Transferred Items
         </h3>
-        {!isReadOnly && !isAdding && (
+        {!isReadOnly && !isAdding && transfersEnabled && (
           <button
             onClick={() => {
               setIsAdding(true);
-              if (categories.length > 0) {
-                setCategoryId(categories[0].id.toString());
-              }
             }}
             className="p-2 md:p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
           >
@@ -102,26 +106,9 @@ export function ItemsSection({
         )}
       </div>
 
-      {isAdding && categories.length === 0 && (
-        <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800 text-center rounded-lg">
-          <p className="text-sm text-charcoal-600 dark:text-charcoal-300 mb-1">
-            No budget categories yet.
-          </p>
-          <p className="text-xs text-charcoal-400 dark:text-charcoal-500">
-            Add some in the Budget section first.
-          </p>
-          <button
-            onClick={resetForm}
-            className="mt-3 px-4 py-2 text-xs text-charcoal-500 hover:text-charcoal-700 dark:hover:text-charcoal-300 hover:bg-sand-200 dark:hover:bg-charcoal-700 active:bg-sand-300 dark:active:bg-charcoal-600 transition-colors rounded touch-manipulation"
-          >
-            Close
-          </button>
-        </div>
-      )}
-
-      {isAdding && categories.length > 0 && (
+      {isAdding && (
         <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Input
               placeholder="Description"
               value={description}
@@ -133,18 +120,28 @@ export function ItemsSection({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            <Select
-              options={categoryOptions}
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            />
             <Input
               type="date"
               value={spentOn}
               onChange={(e) => setSpentOn(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 mb-3">
+            <div>
+              <label className="text-sm text-charcoal-700 dark:text-sand-300 mb-1 block">
+                Where should this money go?
+              </label>
+              <Select
+                options={[
+                  { value: "savings", label: "Savings" },
+                  { value: "retirement_savings", label: "Retirement Savings" },
+                ]}
+                value={savingsDestination}
+                onChange={(e) => setSavingsDestination(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd}>
               <Check size={16} className="mr-1" />
               Add
@@ -167,8 +164,8 @@ export function ItemsSection({
               <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
                 Description
               </th>
-              <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
-                Category
+              <th className="text-center py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                Destination
               </th>
               <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
                 Amount
@@ -177,7 +174,7 @@ export function ItemsSection({
             </tr>
           </thead>
           <tbody>
-            {spendingItems.map((item) => (
+            {transferItems.map((item) => (
               <tr
                 key={item.id}
                 className="border-b border-sand-200 dark:border-charcoal-800 hover:bg-sand-100 dark:hover:bg-charcoal-900/50 active:bg-sand-200 dark:active:bg-charcoal-900 transition-colors"
@@ -202,9 +199,12 @@ export function ItemsSection({
                     </td>
                     <td className="py-2">
                       <Select
-                        options={categoryOptions}
-                        value={categoryId}
-                        onChange={(e) => setCategoryId(e.target.value)}
+                        options={[
+                          { value: "savings", label: "Savings" },
+                          { value: "retirement_savings", label: "Retirement" },
+                        ]}
+                        value={savingsDestination}
+                        onChange={(e) => setSavingsDestination(e.target.value)}
                         className="text-xs"
                       />
                     </td>
@@ -245,15 +245,22 @@ export function ItemsSection({
                         {item.description}
                       </div>
                     </td>
-                    <td className="py-2 px-1">
-                      <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 bg-sand-200 dark:bg-charcoal-800 text-charcoal-600 dark:text-sand-400 whitespace-nowrap">
-                        {item.category_label}
-                      </span>
+                    <td className="py-2 px-1 text-center">
+                      {item.savings_destination === "savings" && (
+                        <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded bg-sage-100 dark:bg-sage-900 text-sage-700 dark:text-sage-200 whitespace-nowrap">
+                          Savings
+                        </span>
+                      )}
+                      {item.savings_destination === "retirement_savings" && (
+                        <span className="text-[10px] md:text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 whitespace-nowrap">
+                          Retirement
+                        </span>
+                      )}
                     </td>
-                    <td className={`py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-terracotta-600 dark:text-terracotta-400`}>
-                      {formatCurrency(item.amount)}
+                    <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-sage-600 dark:text-sage-400">
+                      → {formatCurrency(item.amount)}
                     </td>
-                    {!isReadOnly && (
+                    {!isReadOnly && transfersEnabled && (
                       <td className="py-2 px-1">
                         <div className="flex gap-0.5 md:gap-1 justify-end">
                           <button
@@ -278,13 +285,12 @@ export function ItemsSection({
           </tbody>
         </table>
 
-        {spendingItems.length === 0 && (
+        {transferItems.length === 0 && (
           <div className="text-sm text-charcoal-400 dark:text-charcoal-600 py-8 text-center">
-            No spending items
+            No transfers
           </div>
         )}
       </div>
     </Card>
   );
 }
-
