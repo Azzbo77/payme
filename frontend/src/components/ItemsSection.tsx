@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Info } from "lucide-react";
 import { ItemWithCategory, BudgetCategory, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface ItemsSectionProps {
@@ -29,6 +30,7 @@ export function ItemsSection({
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const handleAdd = async () => {
     if (!description || !amount || !categoryId) return;
@@ -82,11 +84,21 @@ export function ItemsSection({
   const spendingItems = items.filter((item) => item.savings_destination === "none");
 
   return (
+    <>
     <Card className="col-span-full">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-          Spending Items
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
+            Spending Items
+          </span>
+          <button
+            onClick={() => setShowInfoModal(true)}
+            className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+            title="How this works"
+          >
+            <Info size={12} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+          </button>
+        </div>
         {!isReadOnly && !isAdding && (
           <button
             onClick={() => {
@@ -285,6 +297,36 @@ export function ItemsSection({
         )}
       </div>
     </Card>
+
+      <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="Spending Items">
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              What are Spending Items?
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Log individual purchases under different budget categories to track your spending throughout the month.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Monthly Tracking
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Items are associated with a specific month, so they won't carry over to future months.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Savings Transfer
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Items can be directed to savings or retirement accounts using the Transferred Items section.
+            </p>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }
 

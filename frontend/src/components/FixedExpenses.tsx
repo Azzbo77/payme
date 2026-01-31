@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X, Settings } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Settings, Info } from "lucide-react";
 import { FixedExpense, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+
 import { useCurrency } from "../context/CurrencyContext";
 
 interface FixedExpensesProps {
@@ -19,6 +20,7 @@ export function FixedExpenses({ expenses, onUpdate }: FixedExpensesProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const handleAdd = async () => {
     if (!label || !amount) return;
@@ -62,9 +64,18 @@ export function FixedExpenses({ expenses, onUpdate }: FixedExpensesProps) {
     <>
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-            Fixed Expenses
-          </h3>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
+              Fixed Expenses
+            </span>
+            <button
+              onClick={() => setShowInfoModal(true)}
+              className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+              title="How this works"
+            >
+              <Info size={12} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+            </button>
+          </div>
           <button
             onClick={() => setIsManaging(true)}
             className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
@@ -198,6 +209,35 @@ export function FixedExpenses({ expenses, onUpdate }: FixedExpensesProps) {
               Add Expense
             </Button>
           )}
+        </div>
+      </Modal>
+
+      <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="Fixed Expenses">
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              What are Fixed Expenses?
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Recurring costs that stay the same every month (rent, insurance, subscriptions, car payments, etc.).
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Recurring
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Fixed expenses continue month to month and are not reset. They apply automatically each month.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Budget Impact
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              These are deducted from your income before budgeting. They determine how much is available for discretionary spending.
+            </p>
+          </div>
         </div>
       </Modal>
     </>

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Info } from "lucide-react";
 import { IncomeEntry, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface IncomeSectionProps {
@@ -19,6 +20,7 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
   const [editingId, setEditingId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const handleAdd = async () => {
     if (!label || !amount) return;
@@ -59,9 +61,18 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-          Income
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
+            Income
+          </span>
+          <button
+            onClick={() => setShowInfoModal(true)}
+            className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+            title="How this works"
+          >
+            <Info size={12} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+          </button>
+        </div>
         {!isReadOnly && !isAdding && (
           <button
             onClick={() => setIsAdding(true)}
@@ -163,11 +174,40 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
         )}
 
         {entries.length === 0 && !isAdding && (
-          <div className="text-sm text-charcoal-400 dark:text-charcoal-600 py-4 text-center">
-            No income entries
-          </div>
+          <p className="text-sm text-charcoal-500 dark:text-charcoal-400 text-center py-4">
+            No income entries yet
+          </p>
         )}
       </div>
+
+      <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="Income">
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              What is Income?
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Track your monthly income sources (salary, bonuses, side gigs, etc.). Your total income is the base for calculating available funds.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Monthly Reset
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Income entries reset for each new month. Set them fresh each month based on your actual income.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Multiple Sources
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Add different income sources with their own labels to track where your money comes from.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </Card>
   );
 }

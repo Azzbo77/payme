@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Target, Pencil, Check, X, Trash2, Plus } from "lucide-react";
+import { Target, Pencil, Check, X, Trash2, Plus, Info } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface SavingsGoal {
@@ -35,6 +36,7 @@ export function CustomSavingsGoals() {
   const [newGoalTarget, setNewGoalTarget] = useState("");
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [editCurrentAmount, setEditCurrentAmount] = useState("");
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Save goals to localStorage whenever they change
   useEffect(() => {
@@ -92,6 +94,7 @@ export function CustomSavingsGoals() {
   };
 
   return (
+    <>
     <Card className="!p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -99,6 +102,13 @@ export function CustomSavingsGoals() {
           <span className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
             Custom Savings Goals
           </span>
+          <button
+            onClick={() => setShowInfoModal(true)}
+            className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+            title="How this works"
+          >
+            <Info size={12} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+          </button>
         </div>
         {!isAddingNew && (
           <button
@@ -257,5 +267,35 @@ export function CustomSavingsGoals() {
         )}
       </div>
     </Card>
+
+      <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="Custom Savings Goals">
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Set Flexible Goals
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Create custom savings targets for specific goals (vacation, car down payment, emergency fund, etc.). Track progress towards each goal independently.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Track Progress
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Visual progress bars show how close you are to each target, helping you stay motivated.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Local Storage
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Goals are saved in your browser, so they'll persist even if you refresh. Create as many as you need!
+            </p>
+          </div>
+        </div>
+      </Modal>
+    </>
   );
 }

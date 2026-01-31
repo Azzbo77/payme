@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Info } from "lucide-react";
 import { ItemWithCategory, BudgetCategory, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
 
@@ -31,6 +32,7 @@ export function TransfersCard({
   const [amount, setAmount] = useState("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
   const [savingsDestination, setSavingsDestination] = useState("savings");
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const transferItems = items.filter(
     (item) =>
@@ -89,11 +91,21 @@ export function TransfersCard({
   };
 
   return (
+    <>
     <Card className="col-span-full">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-          Transferred Items
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
+            Transferred Items
+          </span>
+          <button
+            onClick={() => setShowInfoModal(true)}
+            className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+            title="How this works"
+          >
+            <Info size={12} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+          </button>
+        </div>
         {!isReadOnly && !isAdding && transfersEnabled && (
           <button
             onClick={() => {
@@ -105,7 +117,6 @@ export function TransfersCard({
           </button>
         )}
       </div>
-
       {isAdding && (
         <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -292,5 +303,35 @@ export function TransfersCard({
         )}
       </div>
     </Card>
+
+    <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="Transferred Items">
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+            Direct to Savings
+          </h3>
+          <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+            Transfer money from monthly spending directly to your general savings account.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+            Direct to Retirement
+          </h3>
+          <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+            Transfer money to your retirement savings account for long-term accumulation.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+            Track All Transfers
+          </h3>
+          <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+            View all your transfers in one place, organized by month and destination.
+          </p>
+        </div>
+      </div>
+    </Modal>
+    </>
   );
 }

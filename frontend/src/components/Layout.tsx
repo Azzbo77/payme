@@ -1,10 +1,11 @@
 import { ReactNode, useRef, useState } from "react";
-import { Moon, Sun, LogOut, Download, Upload, Settings } from "lucide-react";
+import { Moon, Sun, LogOut, Download, Upload, Settings, HelpCircle } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { api, UserExport } from "../api/client";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
+import { HowToUseModal } from "./modals/HowToUseModal";
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,6 +19,7 @@ export function Layout({ children, onSettingsClick }: LayoutProps) {
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [pendingImport, setPendingImport] = useState<UserExport | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showHowToUse, setShowHowToUse] = useState(false);
 
   const handleExport = async () => {
     const data = await api.exportJson();
@@ -116,6 +118,14 @@ export function Layout({ children, onSettingsClick }: LayoutProps) {
             >
               {isDark ? <Sun size={18} /> : <Moon size={18} />}
             </button>
+            <button
+              onClick={() => setShowHowToUse(true)}
+              className="p-2 sm:p-2 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors cursor-pointer touch-manipulation"
+              title="Help"
+              aria-label="Help"
+            >
+              <HelpCircle size={18} />
+            </button>
             {user && onSettingsClick && (
               <button
                 onClick={onSettingsClick}
@@ -162,6 +172,8 @@ export function Layout({ children, onSettingsClick }: LayoutProps) {
           </div>
         </div>
       </Modal>
+
+      <HowToUseModal isOpen={showHowToUse} onClose={() => setShowHowToUse(false)} />
     </div>
   );
 }

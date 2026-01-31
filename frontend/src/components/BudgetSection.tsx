@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X, Settings } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Settings, Info } from "lucide-react";
 import { MonthlyBudgetWithCategory, BudgetCategory, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Modal } from "./ui/Modal";
+
 import { useCurrency } from "../context/CurrencyContext";
 
 interface BudgetSectionProps {
@@ -30,6 +31,7 @@ export function BudgetSection({
   const [editingBudgetId, setEditingBudgetId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const handleAddCategory = async () => {
     if (!label || !amount) return;
@@ -85,9 +87,18 @@ export function BudgetSection({
     <>
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-            Budget
-          </h3>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
+              Budget
+            </span>
+            <button
+              onClick={() => setShowInfoModal(true)}
+              className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+              title="How this works"
+            >
+              <Info size={12} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+            </button>
+          </div>
           <button
             onClick={() => setIsManaging(true)}
             className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
@@ -255,6 +266,35 @@ export function BudgetSection({
               Add Category
             </Button>
           )}
+        </div>
+      </Modal>
+
+      <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="Budget">
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              What is a Budget?
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Set spending allocations for different categories and track your spending against those goals.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Monthly Reset
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Budgets are set per month and reset for each new month so you can adjust based on changing needs.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-2">
+              Custom Categories
+            </h3>
+            <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+              Create categories that fit your spending habits and adjust budgets during the month as needed.
+            </p>
+          </div>
         </div>
       </Modal>
     </>
