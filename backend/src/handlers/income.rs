@@ -450,3 +450,59 @@ pub async fn get_wage_for_month(
 
     Ok(wage)
 }
+
+#[utoipa::path(
+    get, path = "/api/recurring-wages/preferences/enabled",
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Income",
+    summary = "Get recurring wages enabled status",
+    description = "Returns whether recurring wages are enabled for the user."
+)]
+pub async fn get_recurring_wages_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled: i64 = sqlx::query_scalar(
+        "SELECT recurring_wages_enabled FROM users WHERE id = ?",
+    )
+    .bind(claims.sub)
+    .fetch_one(&pool)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
+}
+
+#[utoipa::path(
+    put, path = "/api/recurring-wages/preferences/enabled",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Income",
+    summary = "Set recurring wages enabled status",
+    description = "Enables or disables recurring wages for the user."
+)]
+pub async fn set_recurring_wages_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled = payload
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| PaymeError::BadRequest("Invalid payload".to_string()))?;
+
+    let enabled_int = if enabled { 1 } else { 0 };
+
+    sqlx::query("UPDATE users SET recurring_wages_enabled = ? WHERE id = ?")
+        .bind(enabled_int)
+        .bind(claims.sub)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled })))
+}
