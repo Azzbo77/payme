@@ -14,6 +14,7 @@ import { FixedExpenses } from "../components/FixedExpenses";
 import { BudgetSection } from "../components/BudgetSection";
 import { ItemsSection } from "../components/ItemsSection";
 import { Stats } from "../components/Stats";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { useMonth } from "../hooks/useMonth";
 import { useUIPreferences } from "../context/UIPreferencesContext";
 import { Loader2 } from "lucide-react";
@@ -82,82 +83,94 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
       </div>
 
       <div className="space-y-6">
-        <Summary
-          totalIncome={summary.total_income}
-          totalFixed={summary.total_fixed}
-          totalSpent={summary.total_spent}
-          remaining={summary.remaining}
-          currentAccount={currentAccount?.balance}
-          extraCard={
-            <RetirementSavingsCard
-              refreshTrigger={refreshTrigger} 
-            />
-          }
-        />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <SavingsCard
-            key={summary.month.id}
-            monthId={summary.month.id}
-            initialSavings={summary.savings}
-            isReadOnly={isReadOnly}
-            refreshTrigger={refreshTrigger}
+        <ErrorBoundary section="Summary">
+          <Summary
+            totalIncome={summary.total_income}
+            totalFixed={summary.total_fixed}
+            totalSpent={summary.total_spent}
+            remaining={summary.remaining}
+            currentAccount={currentAccount?.balance}
+            extraCard={
+              <RetirementSavingsCard
+                refreshTrigger={refreshTrigger} 
+              />
+            }
           />
-          {currentAccountEnabled && (
-            <CurrentAccountCard
+        </ErrorBoundary>
+
+        <ErrorBoundary section="Savings Cards">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <SavingsCard
+              key={summary.month.id}
               monthId={summary.month.id}
-              initialBalance={currentAccount}
+              initialSavings={summary.savings}
               isReadOnly={isReadOnly}
-              onUpdate={updateCurrentAccount}
-              onTransferComplete={refresh}
+              refreshTrigger={refreshTrigger}
             />
-          )}
-          {customSavingsGoalsEnabled && <CustomSavingsGoals />}
-        </div>
+            {currentAccountEnabled && (
+              <CurrentAccountCard
+                monthId={summary.month.id}
+                initialBalance={currentAccount}
+                isReadOnly={isReadOnly}
+                onUpdate={updateCurrentAccount}
+                onTransferComplete={refresh}
+              />
+            )}
+            {customSavingsGoalsEnabled && <CustomSavingsGoals />}
+          </div>
+        </ErrorBoundary>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <IncomeSection
-            monthId={summary.month.id}
-            entries={summary.income_entries}
-            isReadOnly={isReadOnly}
-            onUpdate={refresh}
-          />
-          <FixedExpenses
-            monthId={summary.month.id}
-            expenses={summary.fixed_expenses}
-            isReadOnly={isReadOnly}
-            onUpdate={refresh}
-          />
-          <BudgetSection
-            monthId={summary.month.id}
-            budgets={summary.budgets}
-            categories={categories}
-            isReadOnly={isReadOnly}
-            onUpdate={refresh}
-          />
-        </div>
+        <ErrorBoundary section="Income & Expenses">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <IncomeSection
+              monthId={summary.month.id}
+              entries={summary.income_entries}
+              isReadOnly={isReadOnly}
+              onUpdate={refresh}
+            />
+            <FixedExpenses
+              monthId={summary.month.id}
+              expenses={summary.fixed_expenses}
+              isReadOnly={isReadOnly}
+              onUpdate={refresh}
+            />
+            <BudgetSection
+              monthId={summary.month.id}
+              budgets={summary.budgets}
+              categories={categories}
+              isReadOnly={isReadOnly}
+              onUpdate={refresh}
+            />
+          </div>
+        </ErrorBoundary>
 
-        <ItemsSection
-          monthId={summary.month.id}
-          items={summary.items}
-          categories={categories}
-          isReadOnly={isReadOnly}
-          onUpdate={refresh}
-        />
-
-        {(transfersEnabled || summary.items.some(item => item.savings_destination === "savings" || item.savings_destination === "retirement_savings")) && (
-          <TransfersCard 
+        <ErrorBoundary section="Items">
+          <ItemsSection
             monthId={summary.month.id}
             items={summary.items}
             categories={categories}
             isReadOnly={isReadOnly}
             onUpdate={refresh}
           />
+        </ErrorBoundary>
+
+        {(transfersEnabled || summary.items.some(item => item.savings_destination === "savings" || item.savings_destination === "retirement_savings")) && (
+          <ErrorBoundary section="Transfers">
+            <TransfersCard 
+              monthId={summary.month.id}
+              items={summary.items}
+              categories={categories}
+              isReadOnly={isReadOnly}
+              onUpdate={refresh}
+            />
+          </ErrorBoundary>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RetirementBreakdownCard />
-        </div>
+        <ErrorBoundary section="Retirement Plan">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <RetirementBreakdownCard />
+          </div>
+        </ErrorBoundary>
       </div>
 
       <footer className="mt-12 py-4 text-center text-xs text-charcoal-400 dark:text-charcoal-600">
