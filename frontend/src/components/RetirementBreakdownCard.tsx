@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, Edit2, Check, X } from "lucide-react";
+import { Trash2, Edit2, Check, X, Loader } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
@@ -24,6 +24,8 @@ export function RetirementBreakdownCard() {
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   const saveItems = (items: BreakdownItem[]) => {
     setBreakdownItems(items);
@@ -33,23 +35,33 @@ export function RetirementBreakdownCard() {
 
   const handleAdd = () => {
     if (!label || !amount) return;
-    const generateId = () => Date.now().toString();
-    const newItem: BreakdownItem = {
-      id: generateId(),
-      label,
-      amount: parseFloat(amount),
-    };
-    saveItems([...breakdownItems, newItem]);
-    resetForm();
+    setAddLoading(true);
+    try {
+      const generateId = () => Date.now().toString();
+      const newItem: BreakdownItem = {
+        id: generateId(),
+        label,
+        amount: parseFloat(amount),
+      };
+      saveItems([...breakdownItems, newItem]);
+      resetForm();
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   const handleUpdate = (id: string) => {
     if (!label || !amount) return;
-    const updated = breakdownItems.map((item) =>
-      item.id === id ? { ...item, label, amount: parseFloat(amount) } : item
-    );
-    saveItems(updated);
-    resetForm();
+    setUpdateLoading(true);
+    try {
+      const updated = breakdownItems.map((item) =>
+        item.id === id ? { ...item, label, amount: parseFloat(amount) } : item
+      );
+      saveItems(updated);
+      resetForm();
+    } finally {
+      setUpdateLoading(false);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -116,11 +128,11 @@ export function RetirementBreakdownCard() {
             />
           </div>
           <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleAdd}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
               <Check size={16} className="mr-1" />
               Add
             </Button>
-            <Button size="sm" variant="ghost" onClick={resetForm}>
+            <Button size="sm" variant="ghost" onClick={resetForm} disabled={addLoading}>
               <X size={16} className="mr-1" />
               Cancel
             </Button>
@@ -171,13 +183,15 @@ export function RetirementBreakdownCard() {
                         <div className="flex gap-0.5 md:gap-1 justify-end">
                           <button
                             onClick={() => handleUpdate(item.id)}
-                            className="p-2 md:p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 active:bg-sage-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+                            disabled={updateLoading}
+                            className="p-2 md:p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 active:bg-sage-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <Check size={14} />
+                            {updateLoading ? <Loader size={14} className="animate-spin" /> : <Check size={14} />}
                           </button>
                           <button
                             onClick={resetForm}
-                            className="p-2 md:p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+                            disabled={updateLoading}
+                            className="p-2 md:p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <X size={14} />
                           </button>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Loader } from "lucide-react";
 import { IncomeEntry, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -22,11 +22,14 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
   const [editingId, setEditingId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleAdd = async () => {
     if (!label || !amount) return;
+    setAddLoading(true);
     try {
       await api.income.create(monthId, { label, amount: parseFloat(amount) });
       success(`Added income: ${label}`);
@@ -36,11 +39,14 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
       await onUpdate();
     } catch {
       error("Failed to add income");
+    } finally {
+      setAddLoading(false);
     }
   };
 
   const handleUpdate = async (id: number) => {
     if (!label || !amount) return;
+    setUpdateLoading(true);
     try {
       await api.income.update(monthId, id, { label, amount: parseFloat(amount) });
       success(`Updated income: ${label}`);
@@ -50,6 +56,8 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
       await onUpdate();
     } catch {
       error("Failed to update income");
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -124,13 +132,15 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
                 </div>
                 <button
                   onClick={() => handleUpdate(entry.id)}
-                  className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800"
+                  disabled={updateLoading}
+                  className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Check size={16} />
+                  {updateLoading ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
                 </button>
                 <button
                   onClick={cancelEdit}
-                  className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800"
+                  disabled={updateLoading}
+                  className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <X size={16} />
                 </button>
@@ -183,10 +193,10 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
-            <Button size="sm" onClick={handleAdd}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
               <Check size={16} />
             </Button>
-            <Button size="sm" variant="ghost" onClick={cancelEdit}>
+            <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={addLoading}>
               <X size={16} />
             </Button>
           </div>

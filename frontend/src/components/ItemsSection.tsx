@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Loader } from "lucide-react";
 import { ItemWithCategory, BudgetCategory, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -32,11 +32,14 @@ export function ItemsSection({
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
+  const [addLoading, setAddLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleAdd = async () => {
     if (!description || !amount || !categoryId) return;
+    setAddLoading(true);
     try {
       await api.items.create(monthId, {
         description,
@@ -50,11 +53,14 @@ export function ItemsSection({
       await onUpdate();
     } catch {
       error("Failed to add item");
+    } finally {
+      setAddLoading(false);
     }
   };
 
   const handleUpdate = async (id: number) => {
     if (!description || !amount || !categoryId) return;
+    setUpdateLoading(true);
     try {
       await api.items.update(monthId, id, {
         description,
@@ -68,6 +74,8 @@ export function ItemsSection({
       await onUpdate();
     } catch {
       error("Failed to update item");
+    } finally {
+      setUpdateLoading(false);
     }
   };
 
@@ -175,11 +183,11 @@ export function ItemsSection({
             />
           </div>
           <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleAdd}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
               <Check size={16} className="mr-1" />
               Add
             </Button>
-            <Button size="sm" variant="ghost" onClick={resetForm}>
+            <Button size="sm" variant="ghost" onClick={resetForm} disabled={addLoading}>
               <X size={16} className="mr-1" />
               Cancel
             </Button>
@@ -251,13 +259,15 @@ export function ItemsSection({
                       <div className="flex gap-0.5 md:gap-1 justify-end">
                         <button
                           onClick={() => handleUpdate(item.id)}
-                          className="p-2 md:p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 active:bg-sage-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+                          disabled={updateLoading}
+                          className="p-2 md:p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 active:bg-sage-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Check size={14} />
+                          {updateLoading ? <Loader size={14} className="animate-spin" /> : <Check size={14} />}
                         </button>
                         <button
                           onClick={resetForm}
-                          className="p-2 md:p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+                          disabled={updateLoading}
+                          className="p-2 md:p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <X size={14} />
                         </button>

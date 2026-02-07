@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X, Settings } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Settings, Loader } from "lucide-react";
 import { MonthlyFixedExpense, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -24,23 +24,39 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
   const [amount, setAmount] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   const handleAdd = async () => {
     if (!label || !amount) return;
-    await api.monthlyFixedExpenses.create(monthId, { label, amount: parseFloat(amount) });
-    setLabel("");
-    setAmount("");
-    setIsAdding(false);
-    await onUpdate();
+    setAddLoading(true);
+    try {
+      await api.monthlyFixedExpenses.create(monthId, { label, amount: parseFloat(amount) });
+      setLabel("");
+      setAmount("");
+      setIsAdding(false);
+      await onUpdate();
+    } catch {
+      // Error handling
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   const handleUpdate = async (id: number) => {
     if (!label || !amount) return;
-    await api.monthlyFixedExpenses.update(monthId, id, { label, amount: parseFloat(amount) });
-    setEditingId(null);
-    setLabel("");
-    setAmount("");
-    await onUpdate();
+    setUpdateLoading(true);
+    try {
+      await api.monthlyFixedExpenses.update(monthId, id, { label, amount: parseFloat(amount) });
+      setEditingId(null);
+      setLabel("");
+      setAmount("");
+      await onUpdate();
+    } catch {
+      // Error handling
+    } finally {
+      setUpdateLoading(false);
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -150,13 +166,15 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
                   </div>
                   <button
                     onClick={() => handleUpdate(expense.id)}
-                    className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800"
+                    disabled={updateLoading}
+                    className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check size={16} />
+                    {updateLoading ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800"
+                    disabled={updateLoading}
+                    className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <X size={16} />
                   </button>
@@ -201,10 +219,10 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
                   onChange={(e) => setAmount(e.target.value)}
                 />
               </div>
-              <Button size="sm" onClick={handleAdd}>
+              <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
                 <Check size={16} />
               </Button>
-              <Button size="sm" variant="ghost" onClick={cancelEdit}>
+              <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={addLoading}>
                 <X size={16} />
               </Button>
             </div>

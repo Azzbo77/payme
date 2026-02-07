@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Target, Pencil, Check, X, Trash2, Plus } from "lucide-react";
+import { Target, Pencil, Check, X, Trash2, Plus, Loader } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { ProgressBar } from "./ui/ProgressBar";
@@ -27,22 +27,29 @@ export function CustomSavingsGoals() {
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [editCurrentAmount, setEditCurrentAmount] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   const addNewGoal = () => {
     const target = parseFloat(newGoalTarget);
     if (!newGoalName.trim() || isNaN(target) || target <= 0) return;
 
-    const newGoal: SavingsGoal = {
-      id: Date.now().toString(),
-      name: newGoalName.trim(),
-      currentAmount: 0,
-      targetAmount: target,
-    };
+    setAddLoading(true);
+    try {
+      const newGoal: SavingsGoal = {
+        id: Date.now().toString(),
+        name: newGoalName.trim(),
+        currentAmount: 0,
+        targetAmount: target,
+      };
 
-    setGoals([...goals, newGoal]);
-    setNewGoalName("");
-    setNewGoalTarget("");
-    setIsAddingNew(false);
+      setGoals([...goals, newGoal]);
+      setNewGoalName("");
+      setNewGoalTarget("");
+      setIsAddingNew(false);
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   const startEditAmount = (goalId: string, currentAmount: number) => {
@@ -59,11 +66,16 @@ export function CustomSavingsGoals() {
     const amount = parseFloat(editCurrentAmount);
     if (isNaN(amount) || amount < 0) return;
 
-    setGoals(goals.map(goal => 
-      goal.id === goalId ? { ...goal, currentAmount: amount } : goal
-    ));
-    setEditingGoalId(null);
-    setEditCurrentAmount("");
+    setUpdateLoading(true);
+    try {
+      setGoals(goals.map(goal => 
+        goal.id === goalId ? { ...goal, currentAmount: amount } : goal
+      ));
+      setEditingGoalId(null);
+      setEditCurrentAmount("");
+    } finally {
+      setUpdateLoading(false);
+    }
   };
 
   const deleteGoal = (goalId: string) => {
@@ -138,13 +150,15 @@ export function CustomSavingsGoals() {
                       />
                       <button
                         onClick={() => saveEditAmount(goal.id)}
-                        className="p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-sage-900 transition-colors"
+                        disabled={updateLoading}
+                        className="p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-sage-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Check size={14} />
+                        {updateLoading ? <Loader size={14} className="animate-spin" /> : <Check size={14} />}
                       </button>
                       <button
                         onClick={cancelEditAmount}
-                        className="p-1 text-charcoal-400 hover:bg-sand-100 dark:hover:bg-charcoal-800 transition-colors"
+                        disabled={updateLoading}
+                        className="p-1 text-charcoal-400 hover:bg-sand-100 dark:hover:bg-charcoal-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <X size={14} />
                       </button>
@@ -235,6 +249,7 @@ export function CustomSavingsGoals() {
                 onClick={addNewGoal}
                 className="flex-1"
                 disabled={!newGoalName.trim() || !newGoalTarget || parseFloat(newGoalTarget) <= 0}
+                isLoading={addLoading}
               >
                 Add Goal
               </Button>

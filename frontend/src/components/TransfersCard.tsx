@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Loader } from "lucide-react";
 import { ItemWithCategory, BudgetCategory, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -36,6 +36,8 @@ export function TransfersCard({
   const [savingsDestination, setSavingsDestination] = useState("savings");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
 
   const transferItems = items.filter(
     (item) =>
@@ -45,30 +47,46 @@ export function TransfersCard({
 
   const handleAdd = async () => {
     if (!description || !amount) return;
-    const catId = categories.length > 0 ? categories[0].id : 1;
-    await api.items.create(monthId, {
-      description,
-      amount: parseFloat(amount),
-      category_id: catId,
-      spent_on: spentOn,
-      savings_destination: savingsDestination,
-    });
-    resetForm();
-    await onUpdate();
+    setAddLoading(true);
+    try {
+      const catId = categories.length > 0 ? categories[0].id : 1;
+      await api.items.create(monthId, {
+        description,
+        amount: parseFloat(amount),
+        category_id: catId,
+        spent_on: spentOn,
+        savings_destination: savingsDestination,
+      });
+      success("Transfer added");
+      resetForm();
+      await onUpdate();
+    } catch {
+      error("Failed to add transfer");
+    } finally {
+      setAddLoading(false);
+    }
   };
 
   const handleUpdate = async (id: number) => {
     if (!description || !amount) return;
-    const catId = categories.length > 0 ? categories[0].id : 1;
-    await api.items.update(monthId, id, {
-      description,
-      amount: parseFloat(amount),
-      category_id: catId,
-      spent_on: spentOn,
-      savings_destination: savingsDestination,
-    });
-    resetForm();
-    await onUpdate();
+    setUpdateLoading(true);
+    try {
+      const catId = categories.length > 0 ? categories[0].id : 1;
+      await api.items.update(monthId, id, {
+        description,
+        amount: parseFloat(amount),
+        category_id: catId,
+        spent_on: spentOn,
+        savings_destination: savingsDestination,
+      });
+      success("Transfer updated");
+      resetForm();
+      await onUpdate();
+    } catch {
+      error("Failed to update transfer");
+    } finally {
+      setUpdateLoading(false);
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -162,11 +180,11 @@ export function TransfersCard({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleAdd}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
               <Check size={16} className="mr-1" />
               Add
             </Button>
-            <Button size="sm" variant="ghost" onClick={resetForm}>
+            <Button size="sm" variant="ghost" onClick={resetForm} disabled={addLoading}>
               <X size={16} className="mr-1" />
               Cancel
             </Button>
@@ -241,13 +259,15 @@ export function TransfersCard({
                       <div className="flex gap-0.5 md:gap-1 justify-end">
                         <button
                           onClick={() => handleUpdate(item.id)}
-                          className="p-2 md:p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 active:bg-sage-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+                          disabled={updateLoading}
+                          className="p-2 md:p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 active:bg-sage-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <Check size={14} />
+                          {updateLoading ? <Loader size={14} className="animate-spin" /> : <Check size={14} />}
                         </button>
                         <button
                           onClick={resetForm}
-                          className="p-2 md:p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+                          disabled={updateLoading}
+                          className="p-2 md:p-1 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <X size={14} />
                         </button>
@@ -289,11 +309,12 @@ export function TransfersCard({
                           >
                             <Edit2 size={14} />
                           </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-2 md:p-1 text-terracotta-500 hover:bg-terracotta-100 dark:hover:bg-charcoal-800 active:bg-terracotta-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
-                          >
-                            <Trash2 size={14} />
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          disabled={deleteLoading}
+                          className="p-2 md:p-1 text-terracotta-500 hover:bg-terracotta-100 dark:hover:bg-charcoal-800 active:bg-terracotta-200 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deleteLoading ? <Loader size={14} className="animate-spin" /> : <Trash2 size={14} />}
                           </button>
                         </div>
                       </td>

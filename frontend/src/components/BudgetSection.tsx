@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Edit2, Check, X, Settings } from "lucide-react";
+import { Plus, Trash2, Edit2, Check, X, Settings, Loader } from "lucide-react";
 import { MonthlyBudgetWithCategory, BudgetCategory, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
@@ -35,9 +35,13 @@ export function BudgetSection({
   const [amount, setAmount] = useState("");
   const [deleteCategoryConfirmId, setDeleteCategoryConfirmId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [addCategoryLoading, setAddCategoryLoading] = useState(false);
+  const [updateCategoryLoading, setUpdateCategoryLoading] = useState(false);
+  const [updateBudgetLoading, setUpdateBudgetLoading] = useState(false);
 
   const handleAddCategory = async () => {
     if (!label || !amount) return;
+    setAddCategoryLoading(true);
     try {
       await api.categories.create({ label, default_amount: parseFloat(amount) });
       success(`Category created: ${label}`);
@@ -47,11 +51,14 @@ export function BudgetSection({
       await onUpdate();
     } catch {
       error("Failed to create category");
+    } finally {
+      setAddCategoryLoading(false);
     }
   };
 
   const handleUpdateCategory = async (id: number) => {
     if (!label || !amount) return;
+    setUpdateCategoryLoading(true);
     try {
       await api.categories.update(id, { label, default_amount: parseFloat(amount) });
       success(`Category updated: ${label}`);
@@ -61,6 +68,8 @@ export function BudgetSection({
       await onUpdate();
     } catch {
       error("Failed to update category");
+    } finally {
+      setUpdateCategoryLoading(false);
     }
   };
 
@@ -85,6 +94,7 @@ export function BudgetSection({
 
   const handleUpdateBudget = async (budgetId: number) => {
     if (!amount) return;
+    setUpdateBudgetLoading(true);
     try {
       await api.budgets.update(monthId, budgetId, parseFloat(amount));
       success("Budget updated");
@@ -93,6 +103,8 @@ export function BudgetSection({
       await onUpdate();
     } catch {
       error("Failed to update budget");
+    } finally {
+      setUpdateBudgetLoading(false);
     }
   };
 
@@ -148,13 +160,15 @@ export function BudgetSection({
                   </div>
                   <button
                     onClick={() => handleUpdateBudget(budget.id)}
-                    className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800"
+                    disabled={updateBudgetLoading}
+                    className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check size={16} />
+                    {updateBudgetLoading ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800"
+                    disabled={updateBudgetLoading}
+                    className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <X size={16} />
                   </button>
@@ -218,13 +232,15 @@ export function BudgetSection({
                   </div>
                   <button
                     onClick={() => handleUpdateCategory(cat.id)}
-                    className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800"
+                    disabled={updateCategoryLoading}
+                    className="p-2 text-sage-600 hover:bg-sage-100 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Check size={16} />
+                    {updateCategoryLoading ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800"
+                    disabled={updateCategoryLoading}
+                    className="p-2 text-charcoal-500 hover:bg-sand-200 dark:hover:bg-charcoal-800 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <X size={16} />
                   </button>
@@ -271,10 +287,10 @@ export function BudgetSection({
                   onChange={(e) => setAmount(e.target.value)}
                 />
               </div>
-              <Button size="sm" onClick={handleAddCategory}>
+              <Button size="sm" onClick={handleAddCategory} isLoading={addCategoryLoading}>
                 <Check size={16} />
               </Button>
-              <Button size="sm" variant="ghost" onClick={cancelEdit}>
+              <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={addCategoryLoading}>
                 <X size={16} />
               </Button>
             </div>
