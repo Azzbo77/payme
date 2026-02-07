@@ -4,6 +4,7 @@ import { api, CurrentAccountBalance } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { useCurrency } from "../context/CurrencyContext";
+import { useCardEdit } from "../hooks/useCardEdit";
 import { TransferFromCurrentModal } from "./TransferFromCurrentModal";
 
 interface CurrentAccountCardProps {
@@ -22,12 +23,23 @@ export function CurrentAccountCard({
   onTransferComplete
 }: CurrentAccountCardProps) {
   const [balance, setBalance] = useState<number>(initialBalance?.balance ?? 0);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState("");
-  const [loading, setLoading] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
 
   const { formatCurrency } = useCurrency();
+
+  const { isEditing, editValue, isLoading, startEdit: _startEdit, cancelEdit, saveEdit: _saveEdit, setEditValue } = useCardEdit({
+    initialValue: balance,
+    onSave: async (value) => {
+      const updated = await api.monthlyCurrentAccount.update(monthId, value);
+      setBalance(updated.balance);
+      onUpdate?.(updated.balance);
+    },
+  });
+
+  const startEdit = () => {
+    if (isReadOnly) return;
+    _startEdit();
+  };
 
   useEffect(() => {
     if (initialBalance) {
@@ -39,32 +51,6 @@ export function CurrentAccountCard({
       onUpdate?.(res.balance);
     });
   }, [monthId, initialBalance, onUpdate]);
-
-  const startEdit = () => {
-    if (isReadOnly) return;
-    setEditValue(balance.toString());
-    setIsEditing(true);
-  };
-
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditValue("");
-  };
-
-  const saveEdit = async () => {
-    const value = parseFloat(editValue);
-    if (isNaN(value)) return;
-    
-    setLoading(true);
-    try {
-      const updated = await api.monthlyCurrentAccount.update(monthId, value);
-      setBalance(updated.balance);
-      onUpdate?.(updated.balance);
-      setIsEditing(false);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const isNegative = balance < 0;
 
@@ -102,13 +88,13 @@ export function CurrentAccountCard({
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             placeholder="0.00"
-            disabled={loading}
+            disabled={isLoading}
             autoFocus
           />
           <div className="flex gap-2">
             <button
-              onClick={saveEdit}
-              disabled={loading}
+              onClick={_saveEdit}
+              disabled={isLoading}
               className="flex-1 p-1.5 bg-sage-600 dark:bg-sage-500 hover:bg-sage-700 dark:hover:bg-sage-600 text-white rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
               title="Save"
             >
@@ -116,7 +102,7 @@ export function CurrentAccountCard({
             </button>
             <button
               onClick={cancelEdit}
-              disabled={loading}
+              disabled={isLoading}
               className="flex-1 p-1.5 bg-charcoal-200 dark:bg-charcoal-700 hover:bg-charcoal-300 dark:hover:bg-charcoal-600 rounded transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
               title="Cancel"
             >

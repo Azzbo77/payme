@@ -3,6 +3,7 @@ import { TrendingUp, Pencil, Check, X } from "lucide-react";
 import { api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
+import { useCardEdit } from "../hooks/useCardEdit";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface BreakdownItem {
@@ -20,8 +21,6 @@ interface RetirementSavingsCardProps {
 
 export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardProps) {
   const [amount, setAmount] = useState<number>(0);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState("");
   const [breakdownItems, setBreakdownItems] = useState<BreakdownItem[]>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -35,6 +34,14 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
   });
 
   const { formatCurrency } = useCurrency();
+
+  const { isEditing, editValue, startEdit, cancelEdit, saveEdit, setEditValue } = useCardEdit({
+    initialValue: amount,
+    onSave: async (value) => {
+      await api.retirementSavings.update(value);
+      setAmount(value);
+    },
+  });
 
   useEffect(() => {
     api.retirementSavings.get().then((res) => setAmount(res.retirement_savings));
@@ -50,24 +57,6 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
     window.addEventListener("retirementBreakdownUpdated", handleBreakdownUpdate);
     return () => window.removeEventListener("retirementBreakdownUpdated", handleBreakdownUpdate);
   }, []);
-
-  const startEdit = () => {
-    setEditValue(amount.toString());
-    setIsEditing(true);
-  };
-
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditValue("");
-  };
-
-  const saveEdit = async () => {
-    const value = parseFloat(editValue);
-    if (isNaN(value)) return;
-    await api.retirementSavings.update(value);
-    setAmount(value);
-    setIsEditing(false);
-  };
 
   const breakdownTotal = breakdownItems.reduce((sum, item) => sum + item.amount, 0);
   const totalAmount = amount + breakdownTotal;
