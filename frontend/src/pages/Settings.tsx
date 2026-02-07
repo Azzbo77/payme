@@ -7,8 +7,8 @@ import { Modal } from "../components/ui/Modal";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
-import { api } from "../api/client";
-import { ArrowLeft, Info, Eye, EyeOff } from "lucide-react";
+import { api, RecurringWage } from "../api/client";
+import { ArrowLeft, Info, Eye, EyeOff, Trash2 } from "lucide-react";
 
 interface SettingsProps {
   onBack: () => void;
@@ -18,7 +18,7 @@ interface SettingsProps {
 export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled } = useUIPreferences();
+  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -40,7 +40,82 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [selectedCurrency, setSelectedCurrency] = useState(currency.code);
   const [showTransfersModal, setShowTransfersModal] = useState(false);
   const [showRetirementBreakdownModal, setShowRetirementBreakdownModal] = useState(false);
+  const [showRecurringWagesInfoModal, setShowRecurringWagesInfoModal] = useState(false);
+  
+  // Recurring wages state
+  const [recurringWages, setRecurringWages] = useState<RecurringWage[]>([]);
+  const [showRecurringWagesManageModal, setShowRecurringWagesManageModal] = useState(false);
+  const [recurringWagesLoaded, setRecurringWagesLoaded] = useState(false);
+  const [wageLabel, setWageLabel] = useState("Wages");
+  const [wageAmount, setWageAmount] = useState("");
+  const [wageEffectiveFrom, setWageEffectiveFrom] = useState("");
+  const [wageLoading, setWageLoading] = useState(false);
+  const [wageError, setWageError] = useState("");
 
+  const loadRecurringWages = async () => {
+    try {
+      const wages = await api.recurringWages.list();
+      setRecurringWages(wages);
+      setRecurringWagesLoaded(true);
+    } catch {
+      setWageError("Failed to load recurring wages");
+    }
+  };
+
+  const handleAddRecurringWage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWageError("");
+
+    if (!wageAmount || !wageEffectiveFrom) {
+      setWageError("Please fill in all fields");
+      return;
+    }
+
+    if (parseFloat(wageAmount) <= 0) {
+      setWageError("Wage amount must be greater than 0");
+      return;
+    }
+
+    setWageLoading(true);
+    try {
+      await api.recurringWages.create({
+        amount: parseFloat(wageAmount),
+        label: wageLabel || "Wages",
+        effective_from: wageEffectiveFrom,
+      });
+      // Reload wages
+      await loadRecurringWages();
+      // Reset form
+      setWageLabel("Wages");
+      setWageAmount("");
+      setWageEffectiveFrom("");
+      setWageError("");
+    } catch {
+      setWageError("Failed to add recurring wage");
+    } finally {
+      setWageLoading(false);
+    }
+  };
+
+  const handleDeleteRecurringWage = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this wage entry?")) {
+      return;
+    }
+
+    try {
+      await api.recurringWages.delete(id);
+      await loadRecurringWages();
+    } catch {
+      setWageError("Failed to delete recurring wage");
+    }
+  };
+
+  const openRecurringWagesModal = async () => {
+    setShowRecurringWagesManageModal(true);
+    if (!recurringWagesLoaded) {
+      await loadRecurringWages();
+    }
+  };
 
   const handleChangeUsername = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,6 +316,52 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                   />
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Recurring Wages
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Enable Recurring Wages
+                    </label>
+                    <button
+                      onClick={() => setShowRecurringWagesInfoModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How to use recurring wages"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Set up recurring monthly wages that automatically apply to new months
+                  </p>
+                </div>
+                <button
+                  onClick={() => setRecurringWagesEnabled(!recurringWagesEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    recurringWagesEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      recurringWagesEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              {recurringWagesEnabled && (
+                <Button onClick={openRecurringWagesModal} className="w-full">
+                  Manage Recurring Wages
+                </Button>
+              )}
             </div>
           </div>
 
@@ -516,6 +637,163 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           <div className="flex gap-2 pt-4">
             <Button
               onClick={() => setShowRetirementBreakdownModal(false)}
+              className="w-full"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal 
+        isOpen={showRecurringWagesManageModal} 
+        onClose={() => {
+          setShowRecurringWagesManageModal(false);
+          setWageLabel("Wages");
+          setWageAmount("");
+          setWageEffectiveFrom("");
+          setWageError("");
+        }}
+        title="Manage Recurring Wages"
+      >
+        <div className="space-y-4">
+          {recurringWages.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-300 mb-3">
+                Wage History
+              </h3>
+              <div className="space-y-2 max-h-40 overflow-y-auto bg-sand-50 dark:bg-charcoal-800 p-3 rounded border border-sand-200 dark:border-charcoal-700">
+                {recurringWages.map((wage) => (
+                  <div key={wage.id} className="flex items-center justify-between text-sm">
+                    <div>
+                      <p className="font-medium text-charcoal-700 dark:text-sand-200">
+                        {wage.label}: {formatCurrency(wage.amount)}
+                      </p>
+                      <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                        Effective from {new Date(wage.effective_from).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRecurringWage(wage.id)}
+                      className="p-1 hover:bg-terracotta-100 dark:hover:bg-terracotta-900 rounded transition-colors"
+                      title="Delete wage entry"
+                    >
+                      <Trash2 size={16} className="text-terracotta-600" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleAddRecurringWage} className="space-y-4 border-t border-sand-200 dark:border-charcoal-700 pt-4">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-300">
+              Add New Wage Entry
+            </h3>
+            <Input
+              label="Wage Label"
+              type="text"
+              value={wageLabel}
+              onChange={(e) => setWageLabel(e.target.value)}
+              placeholder="e.g., Wages, Salary"
+              disabled={wageLoading}
+            />
+            <Input
+              label="Amount"
+              type="number"
+              step="0.01"
+              value={wageAmount}
+              onChange={(e) => setWageAmount(e.target.value)}
+              placeholder="0.00"
+              disabled={wageLoading}
+            />
+            <Input
+              label="Effective From (Date)"
+              type="date"
+              value={wageEffectiveFrom}
+              onChange={(e) => setWageEffectiveFrom(e.target.value)}
+              disabled={wageLoading}
+            />
+            <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+              This wage will apply to all months from the effective date onwards, unless overridden by a later entry.
+            </p>
+            {wageError && (
+              <p className="text-sm text-terracotta-600">{wageError}</p>
+            )}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="submit" disabled={wageLoading} className="flex-1">
+                {wageLoading ? "Saving..." : "Add Wage Entry"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setShowRecurringWagesManageModal(false);
+                  setWageLabel("Wages");
+                  setWageAmount("");
+                  setWageEffectiveFrom("");
+                  setWageError("");
+                }}
+                disabled={wageLoading}
+                className="flex-1"
+              >
+                Close
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showRecurringWagesInfoModal} onClose={() => setShowRecurringWagesInfoModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Use Recurring Wages
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What are recurring wages?</p>
+              <p>Set up your monthly wages once, and they'll automatically be added as income to every new month you create. Perfect for employees with consistent paychecks.</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Enable/Disable behavior:</p>
+              <ul className="space-y-1">
+                <li><span className="font-medium">When enabled:</span> You can manage wage entries. Wages automatically apply to new months.</li>
+                <li><span className="font-medium">When disabled:</span> Existing wages won't apply to new months, but you can still view and manage entries.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How to add a wage:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Toggle "Enable Recurring Wages" to on</li>
+                <li>Click "Manage Recurring Wages"</li>
+                <li>Fill in the wage label, amount, and effective date</li>
+                <li>Click "Add Wage Entry"</li>
+                <li>The wage will apply to all months from that date forward</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Handling wage increases:</p>
+              <p>When you get a raise, just add a new wage entry with the new amount and the effective date. Previous months will keep their original wage amount - only months from the new date will use the increased amount.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Important notes:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Wages are added automatically when you create or navigate to a month</li>
+                <li>You can still manually edit or delete the wage income if needed</li>
+                <li>The most recent effective wage date applies to each month</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowRecurringWagesInfoModal(false)}
               className="w-full"
             >
               Got it

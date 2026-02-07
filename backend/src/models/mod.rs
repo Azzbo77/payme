@@ -136,3 +136,13 @@ pub struct StatsResponse {
     pub average_monthly_spending: f64,
     pub average_monthly_income: f64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+pub struct RecurringWage {
+    pub id: i64,
+    pub user_id: i64,
+    pub amount: f64,
+    pub label: String,
+    pub effective_from: String,
+    pub created_at: String,
+}

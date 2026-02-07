@@ -16,8 +16,8 @@ use sqlx::SqlitePool;
 use tower_http::cors::{Any, CorsLayer};
 
 use handlers::{
-    auth, budget, export, fixed_expenses, health, income, items, monthly_data, months, savings,
-    stats,
+    auth, budget, export, fixed_expenses, health, income, items, monthly_data, months, recurring_wages,
+    savings, stats,
 };
 use middleware::auth::auth_middleware;
 
@@ -110,6 +110,13 @@ pub fn create_app(pool: SqlitePool) -> Router {
             "/api/months/{month_id}/items/{id}",
             delete(items::delete_item),
         )
+        .route("/api/recurring-wages", get(recurring_wages::list_recurring_wages))
+        .route("/api/recurring-wages", post(recurring_wages::create_recurring_wage))
+        .route("/api/recurring-wages/current", get(recurring_wages::get_current_recurring_wage))
+        .route("/api/recurring-wages/preferences/enabled", get(recurring_wages::get_recurring_wages_enabled))
+        .route("/api/recurring-wages/preferences/enabled", put(recurring_wages::set_recurring_wages_enabled))
+        .route("/api/recurring-wages/{id}", put(recurring_wages::update_recurring_wage))
+        .route("/api/recurring-wages/{id}", delete(recurring_wages::delete_recurring_wage))
         .route("/api/stats", get(stats::get_stats))
         .route("/api/savings", get(savings::get_savings))
         .route("/api/savings", put(savings::update_savings))

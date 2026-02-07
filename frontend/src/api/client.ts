@@ -236,6 +236,29 @@ export const api = {
         body: JSON.stringify({ retirement_savings }),
       }),
   },
+
+  recurringWages: {
+    list: () => request<RecurringWage[]>("/recurring-wages"),
+    getCurrent: () => request<RecurringWage>("/recurring-wages/current"),
+    create: (data: { amount: number; label: string; effective_from: string }) =>
+      request<RecurringWage>("/recurring-wages", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: { amount?: number; label?: string; effective_from?: string }) =>
+      request<RecurringWage>(`/recurring-wages/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number) =>
+      request<void>(`/recurring-wages/${id}`, { method: "DELETE" }),
+    getEnabled: () => request<{ enabled: boolean }>("/recurring-wages/preferences/enabled"),
+    setEnabled: (enabled: boolean) =>
+      request<{ enabled: boolean }>("/recurring-wages/preferences/enabled", {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      }),
+  },
 };
 
 export interface UserExport {
@@ -367,4 +390,14 @@ export interface StatsResponse {
   average_monthly_spending: number;
   average_monthly_income: number;
 }
+
+export interface RecurringWage {
+  id: number;
+  user_id: number;
+  amount: number;
+  label: string;
+  effective_from: string;
+  created_at: string;
+}
+
 
