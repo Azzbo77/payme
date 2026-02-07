@@ -28,7 +28,7 @@ export function SavingsCard({ monthId, initialSavings, isReadOnly, onSavingsChan
   const { formatCurrency } = useCurrency();
 
   useEffect(() => {
-    if (initialSavings) {
+    if (initialSavings && refreshTrigger === 0) {
       return;
     }
     api.monthlySavings.get(monthId).then((res) => {

@@ -146,3 +146,10 @@ pub struct RecurringWage {
     pub effective_from: String,
     pub created_at: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+pub struct CurrentAccountBalance {
+    pub id: i64,
+    pub month_id: i64,
+    pub balance: f64,
+}

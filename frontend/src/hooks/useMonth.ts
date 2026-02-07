@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { api, MonthSummary, Month, BudgetCategory } from "../api/client";
+import { api, MonthSummary, Month, BudgetCategory, CurrentAccountBalance } from "../api/client";
 
 export function useMonth() {
   const [summary, setSummary] = useState<MonthSummary | null>(null);
+  const [currentAccount, setCurrentAccount] = useState<CurrentAccountBalance | null>(null);
   const [months, setMonths] = useState<Month[]>([]);
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [selectedMonthId, setSelectedMonthId] = useState<number | null>(null);
@@ -26,6 +27,10 @@ export function useMonth() {
         : await api.months.current();
       setSummary(data);
       setSelectedMonthId(data.month.id);
+      
+      // Load current account balance
+      const accountData = await api.monthlyCurrentAccount.get(data.month.id);
+      setCurrentAccount(accountData);
     } finally {
       setLoading(false);
     }
@@ -81,8 +86,15 @@ export function useMonth() {
     URL.revokeObjectURL(url);
   };
 
+  const updateCurrentAccount = async (balance: number) => {
+    if (!selectedMonthId) return;
+    const updated = await api.monthlyCurrentAccount.update(selectedMonthId, balance);
+    setCurrentAccount(updated);
+  };
+
   return {
     summary,
+    currentAccount,
     months,
     categories,
     selectedMonthId,
@@ -93,6 +105,7 @@ export function useMonth() {
     closeMonth,
     reopenMonth,
     downloadPdf,
+    updateCurrentAccount,
     refreshTrigger,
   };
 }

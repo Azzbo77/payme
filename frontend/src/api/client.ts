@@ -228,6 +228,28 @@ export const api = {
       request<void>(`/months/${monthId}/fixed-expenses/${id}`, { method: "DELETE" }),
   },
 
+  monthlyCurrentAccount: {
+    get: (monthId: number) =>
+      request<CurrentAccountBalance>(`/months/${monthId}/current-account`),
+    update: (monthId: number, balance: number) =>
+      request<CurrentAccountBalance>(`/months/${monthId}/current-account`, {
+        method: "PUT",
+        body: JSON.stringify({ balance }),
+      }),
+    transfer: (monthId: number, amount: number, destination: "savings" | "retirement_savings") =>
+      request<{ success: boolean; message: string }>(`/months/${monthId}/transfer`, {
+        method: "POST",
+        body: JSON.stringify({ amount, destination }),
+      }),
+    getEnabled: () =>
+      request<{ enabled: boolean }>(`/current-account/preferences/enabled`),
+    setEnabled: (enabled: boolean) =>
+      request<{ enabled: boolean }>(`/current-account/preferences/enabled`, {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      }),
+  },
+
   retirementSavings: {
     get: () => request<{ retirement_savings: number }>("/retirement-savings"),
     update: (retirement_savings: number) =>
@@ -398,6 +420,12 @@ export interface RecurringWage {
   label: string;
   effective_from: string;
   created_at: string;
+}
+
+export interface CurrentAccountBalance {
+  id: number;
+  month_id: number;
+  balance: number;
 }
 
 

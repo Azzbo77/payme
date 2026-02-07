@@ -8,6 +8,8 @@ interface UIPreferencesContextType {
   setRetirementBreakdownEnabled: (enabled: boolean) => void;
   recurringWagesEnabled: boolean;
   setRecurringWagesEnabled: (enabled: boolean) => void;
+  currentAccountEnabled: boolean;
+  setCurrentAccountEnabled: (enabled: boolean) => void;
 }
 
 const UIPreferencesContext = createContext<UIPreferencesContextType | undefined>(undefined);
@@ -54,6 +56,19 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     return true;
   });
 
+  const [currentAccountEnabled, setCurrentAccountEnabledState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const prefs = JSON.parse(stored);
+        return prefs.currentAccountEnabled ?? true;
+      } catch {
+        return true;
+      }
+    }
+    return true;
+  });
+
   const setTransfersEnabled = (enabled: boolean) => {
     setTransfersEnabledState(enabled);
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -79,8 +94,19 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const setCurrentAccountEnabled = (enabled: boolean) => {
+    setCurrentAccountEnabledState(enabled);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const prefs = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, currentAccountEnabled: enabled }));
+    // Sync to server
+    api.monthlyCurrentAccount.setEnabled(enabled).catch((e) => {
+      console.error("Failed to sync current account enabled preference:", e);
+    });
+  };
+
   return (
-    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled }}>
+    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled }}>
       {children}
     </UIPreferencesContext.Provider>
   );

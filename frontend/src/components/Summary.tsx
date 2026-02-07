@@ -1,4 +1,4 @@
-import { TrendingDown, Wallet, CreditCard, PiggyBank } from "lucide-react";
+import { TrendingDown, Wallet, CreditCard, PiggyBank, Banknote } from "lucide-react";
 import { Card } from "./ui/Card";
 import { ReactNode } from "react";
 import { useCurrency } from "../context/CurrencyContext";
@@ -8,10 +8,11 @@ interface SummaryProps {
   totalFixed: number;
   totalSpent: number;
   remaining: number;
+  currentAccount?: number;
   extraCard?: ReactNode;
 }
 
-export function Summary({ totalIncome, totalFixed, totalSpent, remaining, extraCard }: SummaryProps) {
+export function Summary({ totalIncome, totalFixed, totalSpent, remaining, currentAccount, extraCard }: SummaryProps) {
   const { formatCurrency } = useCurrency();
   const isPositive = remaining >= 0;
 
@@ -47,6 +48,15 @@ export function Summary({ totalIncome, totalFixed, totalSpent, remaining, extraC
     },
   ];
 
+  const currentAccountItem = currentAccount !== undefined ? {
+    label: "Current Account",
+    value: currentAccount,
+    icon: Banknote,
+    color: currentAccount >= 0 
+      ? "text-blue-600 dark:text-blue-400"
+      : "text-terracotta-600 dark:text-terracotta-400",
+  } : null;
+
   const renderCard = (item: typeof items[0]) => (
     <Card key={item.label}>
       <div className="flex items-start justify-between">
@@ -67,8 +77,15 @@ export function Summary({ totalIncome, totalFixed, totalSpent, remaining, extraC
   );
 
   return (
-    <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${extraCard ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+    <div className={`grid gap-3 sm:gap-4 ${
+      currentAccountItem && extraCard 
+        ? "grid-cols-2 lg:grid-cols-6" 
+        : currentAccountItem || extraCard
+        ? "grid-cols-2 lg:grid-cols-5"
+        : "grid-cols-2 lg:grid-cols-4"
+    }`}>
       {items.map(renderCard)}
+      {currentAccountItem && renderCard(currentAccountItem)}
       {extraCard}
       {itemsAfter.map(renderCard)}
     </div>

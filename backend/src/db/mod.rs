@@ -44,6 +44,11 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .await
         .ok();
 
+    sqlx::query("ALTER TABLE users ADD COLUMN current_account_enabled INTEGER NOT NULL DEFAULT 1")
+        .execute(pool)
+        .await
+        .ok();
+
     sqlx::query("UPDATE users SET retirement_savings = roth_ira WHERE retirement_savings = 0 AND roth_ira IS NOT NULL AND roth_ira > 0")
         .execute(pool)
         .await
@@ -214,6 +219,19 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     let _ = sqlx::query("ALTER TABLE recurring_wages ADD COLUMN label TEXT NOT NULL DEFAULT 'Wages'")
         .execute(pool)
         .await;
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS monthly_current_account (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            month_id INTEGER NOT NULL UNIQUE,
+            balance REAL NOT NULL DEFAULT 0,
+            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
 
     // Migration: Backfill existing months with current fixed expenses and savings
     // This ensures existing data is preserved when upgrading

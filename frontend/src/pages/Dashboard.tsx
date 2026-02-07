@@ -3,6 +3,7 @@ import { Layout } from "../components/Layout";
 import { MonthNav } from "../components/MonthNav";
 import { Summary } from "../components/Summary";
 import { SavingsCard } from "../components/SavingsCard";
+import { CurrentAccountCard } from "../components/CurrentAccountCard";
 import { RetirementSavingsCard } from "../components/RetirementSavingsCard";
 import { RetirementBreakdownCard } from "../components/RetirementBreakdownCard";
 import { CustomSavingsGoals } from "../components/CustomSavingsGoals";
@@ -24,9 +25,10 @@ interface DashboardProps {
 
 export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
   const [showVarianceModal, setShowVarianceModal] = useState(false);
-  const { transfersEnabled } = useUIPreferences();
+  const { transfersEnabled, currentAccountEnabled } = useUIPreferences();
   const {
     summary,
+    currentAccount,
     months,
     categories,
     selectedMonthId,
@@ -36,6 +38,7 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
     refresh,
     closeMonth,
     reopenMonth,
+    updateCurrentAccount,
     refreshTrigger,
   } = useMonth();
 
@@ -84,6 +87,7 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
           totalFixed={summary.total_fixed}
           totalSpent={summary.total_spent}
           remaining={summary.remaining}
+          currentAccount={currentAccount?.balance}
           extraCard={
             <RetirementSavingsCard
               refreshTrigger={refreshTrigger} 
@@ -91,7 +95,7 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
           }
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <SavingsCard
             key={summary.month.id}
             monthId={summary.month.id}
@@ -99,6 +103,15 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
             isReadOnly={isReadOnly}
             refreshTrigger={refreshTrigger}
           />
+          {currentAccountEnabled && (
+            <CurrentAccountCard
+              monthId={summary.month.id}
+              initialBalance={currentAccount}
+              isReadOnly={isReadOnly}
+              onUpdate={updateCurrentAccount}
+              onTransferComplete={refresh}
+            />
+          )}
           <CustomSavingsGoals />
         </div>
 

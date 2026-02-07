@@ -18,7 +18,7 @@ interface SettingsProps {
 export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled } = useUIPreferences();
+  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -41,6 +41,7 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [showTransfersModal, setShowTransfersModal] = useState(false);
   const [showRetirementBreakdownModal, setShowRetirementBreakdownModal] = useState(false);
   const [showRecurringWagesInfoModal, setShowRecurringWagesInfoModal] = useState(false);
+  const [showCurrentAccountInfoModal, setShowCurrentAccountInfoModal] = useState(false);
   
   // Recurring wages state
   const [recurringWages, setRecurringWages] = useState<RecurringWage[]>([]);
@@ -312,6 +313,47 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       retirementBreakdownEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Current Account Balance
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Enable Current Account Tracking
+                    </label>
+                    <button
+                      onClick={() => setShowCurrentAccountInfoModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How to use current account tracking"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Track your bank account balance and transfer to savings
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCurrentAccountEnabled(!currentAccountEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    currentAccountEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      currentAccountEnabled ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -794,6 +836,64 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           <div className="flex gap-2 pt-4">
             <Button
               onClick={() => setShowRecurringWagesInfoModal(false)}
+              className="w-full"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showCurrentAccountInfoModal} onClose={() => setShowCurrentAccountInfoModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Use Current Account Tracking
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What is a current account?</p>
+              <p>Your current account represents your main bank account - the account where your wages go in and where you pay your bills from. This is separate from your savings accounts.</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Enable/Disable behavior:</p>
+              <ul className="space-y-1">
+                <li><span className="font-medium">When enabled:</span> You can track your current account balance and transfer money to savings or retirement accounts.</li>
+                <li><span className="font-medium">When disabled:</span> The current account card will be hidden from the dashboard.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How to use it:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Toggle "Enable Current Account Tracking" to on</li>
+                <li>Enter your current account balance in the card</li>
+                <li>As you add expenses, your budget tracks where the money goes</li>
+                <li>When you save money or move to retirement, use the "Transfer" button to move funds</li>
+                <li>Transfers appear in the "Transferred Items" section for a record</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">When to transfer:</p>
+              <p>Transfer money from your current account when you've saved enough to move it to long-term savings or retirement accounts. This helps you keep track of how much is in each account.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Important notes:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Current account balance is tracked per month</li>
+                <li>You can manually edit the balance if needed</li>
+                <li>Transfers automatically appear as items in the Transferred Items section</li>
+                <li>The balance can go negative if spending exceeds income (overdraft)</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowCurrentAccountInfoModal(false)}
               className="w-full"
             >
               Got it

@@ -3,6 +3,7 @@ use axum::{
     http::StatusCode,
     Json,
 };
+use chrono;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use utoipa::ToSchema;
@@ -10,7 +11,7 @@ use validator::Validate;
 
 use crate::error::PaymeError;
 use crate::middleware::auth::Claims;
-use crate::models::{MonthlyFixedExpense, MonthlySavings};
+use crate::models::{CurrentAccountBalance, MonthlyFixedExpense, MonthlySavings};
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct CreateMonthlyFixedExpense {
@@ -319,4 +320,305 @@ pub async fn update_monthly_savings(
     .await?;
 
     Ok(Json(updated))
+}
+#[utoipa::path(
+    get,
+    path = "/api/months/{month_id}/current-account",
+    params(("month_id" = i64, Path, description = "Month ID")),
+    responses(
+        (status = 200, body = CurrentAccountBalance),
+        (status = 404, description = "Month not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Months",
+    summary = "Get current account balance",
+    description = "Retrieves the current account balance for a specific month."
+)]
+pub async fn get_monthly_current_account(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Path(month_id): Path<i64>,
+) -> Result<Json<CurrentAccountBalance>, PaymeError> {
+    let _: (i64,) = sqlx::query_as("SELECT id FROM months WHERE id = ? AND user_id = ?")
+        .bind(month_id)
+        .bind(claims.sub)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or(PaymeError::NotFound)?;
+
+    let balance: Option<CurrentAccountBalance> = sqlx::query_as(
+        "SELECT id, month_id, balance FROM monthly_current_account WHERE month_id = ?",
+    )
+    .bind(month_id)
+    .fetch_optional(&pool)
+    .await?;
+
+    match balance {
+        Some(b) => Ok(Json(b)),
+        None => {
+            // Create with 0 balance if doesn't exist
+            let id: i64 = sqlx::query_scalar(
+                "INSERT INTO monthly_current_account (month_id, balance) VALUES (?, 0) RETURNING id",
+            )
+            .bind(month_id)
+            .fetch_one(&pool)
+            .await?;
+
+            Ok(Json(CurrentAccountBalance {
+                id,
+                month_id,
+                balance: 0.0,
+            }))
+        }
+    }
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct UpdateCurrentAccount {
+    #[validate(range(min = -999999.99, max = 999999.99))]
+    pub balance: f64,
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/months/{month_id}/current-account",
+    params(("month_id" = i64, Path, description = "Month ID")),
+    request_body = UpdateCurrentAccount,
+    responses(
+        (status = 200, body = CurrentAccountBalance),
+        (status = 404, description = "Month not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Months",
+    summary = "Update current account balance",
+    description = "Updates the current account balance for a specific month."
+)]
+pub async fn update_monthly_current_account(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Path(month_id): Path<i64>,
+    Json(payload): Json<UpdateCurrentAccount>,
+) -> Result<Json<CurrentAccountBalance>, PaymeError> {
+    payload.validate()?;
+
+    let _: (i64,) = sqlx::query_as("SELECT id FROM months WHERE id = ? AND user_id = ?")
+        .bind(month_id)
+        .bind(claims.sub)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or(PaymeError::NotFound)?;
+
+    let existing: Option<CurrentAccountBalance> = sqlx::query_as(
+        "SELECT id, month_id, balance FROM monthly_current_account WHERE month_id = ?",
+    )
+    .bind(month_id)
+    .fetch_optional(&pool)
+    .await?;
+
+    if let Some(_) = existing {
+        sqlx::query("UPDATE monthly_current_account SET balance = ? WHERE month_id = ?")
+            .bind(payload.balance)
+            .bind(month_id)
+            .execute(&pool)
+            .await?;
+    } else {
+        sqlx::query("INSERT INTO monthly_current_account (month_id, balance) VALUES (?, ?)")
+            .bind(month_id)
+            .bind(payload.balance)
+            .execute(&pool)
+            .await?;
+    }
+
+    let updated: CurrentAccountBalance = sqlx::query_as(
+        "SELECT id, month_id, balance FROM monthly_current_account WHERE month_id = ?",
+    )
+    .bind(month_id)
+    .fetch_one(&pool)
+    .await?;
+
+    Ok(Json(updated))
+}
+
+#[derive(Deserialize, ToSchema, Validate)]
+pub struct TransferRequest {
+    #[validate(range(min = 0.01))]
+    pub amount: f64,
+    pub destination: String, // "savings" or "retirement_savings"
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/current-account/preferences/enabled",
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Current Account",
+    summary = "Get current account enabled status",
+    description = "Retrieves whether current account tracking is enabled for the user."
+)]
+pub async fn get_current_account_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled: i64 = sqlx::query_scalar(
+        "SELECT current_account_enabled FROM users WHERE id = ?",
+    )
+    .bind(claims.sub)
+    .fetch_one(&pool)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/current-account/preferences/enabled",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Current Account",
+    summary = "Set current account enabled status",
+    description = "Enables or disables current account tracking for the user."
+)]
+pub async fn set_current_account_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled = payload
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| PaymeError::BadRequest("Invalid payload".to_string()))?;
+
+    let enabled_int = if enabled { 1 } else { 0 };
+
+    sqlx::query("UPDATE users SET current_account_enabled = ? WHERE id = ?")
+        .bind(enabled_int)
+        .bind(claims.sub)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled })))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/months/{month_id}/transfer",
+    params(("month_id" = i64, Path, description = "Month ID")),
+    request_body = TransferRequest,
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 400, description = "Invalid destination or insufficient balance"),
+        (status = 404, description = "Month not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Months",
+    summary = "Transfer money between accounts",
+    description = "Transfers money from current account to savings or retirement savings."
+)]
+pub async fn transfer_from_current_account(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Path(month_id): Path<i64>,
+    Json(payload): Json<TransferRequest>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    payload.validate()?;
+
+    let valid_destinations = ["savings", "retirement_savings"];
+    if !valid_destinations.contains(&payload.destination.as_str()) {
+        return Err(PaymeError::BadRequest(
+            "Destination must be 'savings' or 'retirement_savings'".to_string(),
+        ));
+    }
+
+    let _: (i64,) = sqlx::query_as("SELECT id FROM months WHERE id = ? AND user_id = ?")
+        .bind(month_id)
+        .bind(claims.sub)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or(PaymeError::NotFound)?;
+
+    // Get current account balance
+    let current_balance: Option<f64> = sqlx::query_scalar(
+        "SELECT balance FROM monthly_current_account WHERE month_id = ?",
+    )
+    .bind(month_id)
+    .fetch_optional(&pool)
+    .await?;
+
+    let current_balance = current_balance.unwrap_or(0.0);
+
+    if current_balance < payload.amount {
+        return Err(PaymeError::BadRequest(
+            "Insufficient balance in current account".to_string(),
+        ));
+    }
+
+    // Get first category for transfer item
+    let category_id: i64 = sqlx::query_scalar(
+        "SELECT id FROM budget_categories WHERE user_id = ? ORDER BY id LIMIT 1"
+    )
+    .bind(claims.sub)
+    .fetch_optional(&pool)
+    .await?
+    .ok_or(PaymeError::BadRequest("No categories found".to_string()))?;
+
+    let today = chrono::Local::now().naive_local().date();
+
+    // Create item entry for transfer record
+    sqlx::query(
+        "INSERT INTO items (month_id, category_id, description, amount, spent_on, savings_destination) VALUES (?, ?, ?, ?, ?, ?)"
+    )
+    .bind(month_id)
+    .bind(category_id)
+    .bind(format!("Transfer to {}", payload.destination.replace("_", " ")))
+    .bind(payload.amount)
+    .bind(today)
+    .bind(&payload.destination)
+    .execute(&pool)
+    .await?;
+
+    // Update current account
+    sqlx::query("UPDATE monthly_current_account SET balance = balance - ? WHERE month_id = ?")
+        .bind(payload.amount)
+        .bind(month_id)
+        .execute(&pool)
+        .await?;
+
+    // Update savings or retirement savings
+    if payload.destination == "savings" {
+        sqlx::query("UPDATE monthly_savings SET savings = savings + ? WHERE month_id = ?")
+            .bind(payload.amount)
+            .bind(month_id)
+            .execute(&pool)
+            .await?;
+        
+        // Update user-level savings
+        sqlx::query("UPDATE users SET savings = savings + ? WHERE id = ?")
+            .bind(payload.amount)
+            .bind(claims.sub)
+            .execute(&pool)
+            .await?;
+    } else {
+        sqlx::query("UPDATE monthly_savings SET retirement_savings = retirement_savings + ? WHERE month_id = ?")
+            .bind(payload.amount)
+            .bind(month_id)
+            .execute(&pool)
+            .await?;
+        
+        // Update user-level retirement savings
+        sqlx::query("UPDATE users SET retirement_savings = retirement_savings + ? WHERE id = ?")
+            .bind(payload.amount)
+            .bind(claims.sub)
+            .execute(&pool)
+            .await?;
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("Transferred {} to {}", payload.amount, payload.destination)
+    })))
 }

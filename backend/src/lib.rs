@@ -66,6 +66,18 @@ pub fn create_app(pool: SqlitePool) -> Router {
             put(monthly_data::update_monthly_savings),
         )
         .route(
+            "/api/months/{month_id}/current-account",
+            get(monthly_data::get_monthly_current_account),
+        )
+        .route(
+            "/api/months/{month_id}/current-account",
+            put(monthly_data::update_monthly_current_account),
+        )
+        .route(
+            "/api/months/{month_id}/transfer",
+            post(monthly_data::transfer_from_current_account),
+        )
+        .route(
             "/api/fixed-expenses",
             get(fixed_expenses::list_fixed_expenses),
         )
@@ -115,6 +127,8 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .route("/api/recurring-wages/current", get(recurring_wages::get_current_recurring_wage))
         .route("/api/recurring-wages/preferences/enabled", get(recurring_wages::get_recurring_wages_enabled))
         .route("/api/recurring-wages/preferences/enabled", put(recurring_wages::set_recurring_wages_enabled))
+        .route("/api/current-account/preferences/enabled", get(monthly_data::get_current_account_enabled))
+        .route("/api/current-account/preferences/enabled", put(monthly_data::set_current_account_enabled))
         .route("/api/recurring-wages/{id}", put(recurring_wages::update_recurring_wage))
         .route("/api/recurring-wages/{id}", delete(recurring_wages::delete_recurring_wage))
         .route("/api/stats", get(stats::get_stats))
