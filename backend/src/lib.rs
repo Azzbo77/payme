@@ -16,7 +16,7 @@ use sqlx::SqlitePool;
 use tower_http::cors::{Any, CorsLayer};
 
 use handlers::{
-    auth, budget, export, fixed_expenses, health, income, items, monthly_data, months,
+    auth, budget, export, fixed_expenses, health, income, items, monthly_data, months, preferences,
     savings, stats,
 };
 use middleware::auth::auth_middleware;
@@ -125,14 +125,14 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .route("/api/recurring-wages", get(income::list_recurring_wages))
         .route("/api/recurring-wages", post(income::create_recurring_wage))
         .route("/api/recurring-wages/current", get(income::get_current_recurring_wage))
-        .route("/api/recurring-wages/preferences/enabled", get(income::get_recurring_wages_enabled))
-        .route("/api/recurring-wages/preferences/enabled", put(income::set_recurring_wages_enabled))
-        .route("/api/current-account/preferences/enabled", get(monthly_data::get_current_account_enabled))
-        .route("/api/current-account/preferences/enabled", put(monthly_data::set_current_account_enabled))
-        .route("/api/custom-savings-goals/preferences/enabled", get(monthly_data::get_custom_savings_goals_enabled))
-        .route("/api/custom-savings-goals/preferences/enabled", put(monthly_data::set_custom_savings_goals_enabled))
         .route("/api/recurring-wages/{id}", put(income::update_recurring_wage))
         .route("/api/recurring-wages/{id}", delete(income::delete_recurring_wage))
+        .route("/api/preferences/recurring-wages", get(preferences::get_recurring_wages_enabled))
+        .route("/api/preferences/recurring-wages", put(preferences::set_recurring_wages_enabled))
+        .route("/api/preferences/current-account", get(preferences::get_current_account_enabled))
+        .route("/api/preferences/current-account", put(preferences::set_current_account_enabled))
+        .route("/api/preferences/custom-savings-goals", get(preferences::get_custom_savings_goals_enabled))
+        .route("/api/preferences/custom-savings-goals", put(preferences::set_custom_savings_goals_enabled))
         .route("/api/stats", get(stats::get_stats))
         .route("/api/savings", get(savings::get_savings))
         .route("/api/savings", put(savings::update_savings))

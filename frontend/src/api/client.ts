@@ -242,9 +242,9 @@ export const api = {
         body: JSON.stringify({ amount, destination }),
       }),
     getEnabled: () =>
-      request<{ enabled: boolean }>(`/current-account/preferences/enabled`),
+      request<{ enabled: boolean }>(`/preferences/current-account`),
     setEnabled: (enabled: boolean) =>
-      request<{ enabled: boolean }>(`/current-account/preferences/enabled`, {
+      request<{ enabled: boolean }>(`/preferences/current-account`, {
         method: "PUT",
         body: JSON.stringify({ enabled }),
       }),
@@ -252,9 +252,9 @@ export const api = {
 
   customSavingsGoals: {
     getEnabled: () =>
-      request<{ enabled: boolean }>(`/custom-savings-goals/preferences/enabled`),
+      request<{ enabled: boolean }>(`/preferences/custom-savings-goals`),
     setEnabled: (enabled: boolean) =>
-      request<{ enabled: boolean }>(`/custom-savings-goals/preferences/enabled`, {
+      request<{ enabled: boolean }>(`/preferences/custom-savings-goals`, {
         method: "PUT",
         body: JSON.stringify({ enabled }),
       }),
@@ -284,9 +284,9 @@ export const api = {
       }),
     delete: (id: number) =>
       request<void>(`/recurring-wages/${id}`, { method: "DELETE" }),
-    getEnabled: () => request<{ enabled: boolean }>("/recurring-wages/preferences/enabled"),
+    getEnabled: () => request<{ enabled: boolean }>("/preferences/recurring-wages"),
     setEnabled: (enabled: boolean) =>
-      request<{ enabled: boolean }>("/recurring-wages/preferences/enabled", {
+      request<{ enabled: boolean }>("/preferences/recurring-wages", {
         method: "PUT",
         body: JSON.stringify({ enabled }),
       }),
