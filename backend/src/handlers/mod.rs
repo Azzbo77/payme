@@ -7,6 +7,5 @@ pub mod income;
 pub mod items;
 pub mod monthly_data;
 pub mod months;
-pub mod recurring_wages;
 pub mod savings;
 pub mod stats;

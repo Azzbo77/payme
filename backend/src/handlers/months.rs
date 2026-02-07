@@ -134,7 +134,7 @@ pub async fn create_month(
             }
 
             // Add recurring wage if one is configured
-            if let Ok(wage_option) = crate::handlers::recurring_wages::get_wage_for_month(
+            if let Ok(wage_option) = crate::handlers::income::get_wage_for_month(
                 &pool,
                 claims.sub,
                 payload.year,
