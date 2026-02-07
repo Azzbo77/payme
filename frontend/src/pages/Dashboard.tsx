@@ -25,7 +25,7 @@ interface DashboardProps {
 
 export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
   const [showVarianceModal, setShowVarianceModal] = useState(false);
-  const { transfersEnabled, currentAccountEnabled } = useUIPreferences();
+  const { transfersEnabled, currentAccountEnabled, customSavingsGoalsEnabled } = useUIPreferences();
   const {
     summary,
     currentAccount,
@@ -112,7 +112,7 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
               onTransferComplete={refresh}
             />
           )}
-          <CustomSavingsGoals />
+          {customSavingsGoalsEnabled && <CustomSavingsGoals />}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -129,6 +129,8 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .route("/api/recurring-wages/preferences/enabled", put(recurring_wages::set_recurring_wages_enabled))
         .route("/api/current-account/preferences/enabled", get(monthly_data::get_current_account_enabled))
         .route("/api/current-account/preferences/enabled", put(monthly_data::set_current_account_enabled))
+        .route("/api/custom-savings-goals/preferences/enabled", get(monthly_data::get_custom_savings_goals_enabled))
+        .route("/api/custom-savings-goals/preferences/enabled", put(monthly_data::set_custom_savings_goals_enabled))
         .route("/api/recurring-wages/{id}", put(recurring_wages::update_recurring_wage))
         .route("/api/recurring-wages/{id}", delete(recurring_wages::delete_recurring_wage))
         .route("/api/stats", get(stats::get_stats))

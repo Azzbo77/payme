@@ -10,6 +10,8 @@ interface UIPreferencesContextType {
   setRecurringWagesEnabled: (enabled: boolean) => void;
   currentAccountEnabled: boolean;
   setCurrentAccountEnabled: (enabled: boolean) => void;
+  customSavingsGoalsEnabled: boolean;
+  setCustomSavingsGoalsEnabled: (enabled: boolean) => void;
 }
 
 const UIPreferencesContext = createContext<UIPreferencesContextType | undefined>(undefined);
@@ -69,6 +71,19 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     return true;
   });
 
+  const [customSavingsGoalsEnabled, setCustomSavingsGoalsEnabledState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const prefs = JSON.parse(stored);
+        return prefs.customSavingsGoalsEnabled ?? true;
+      } catch {
+        return true;
+      }
+    }
+    return true;
+  });
+
   const setTransfersEnabled = (enabled: boolean) => {
     setTransfersEnabledState(enabled);
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -105,8 +120,19 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const setCustomSavingsGoalsEnabled = (enabled: boolean) => {
+    setCustomSavingsGoalsEnabledState(enabled);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const prefs = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, customSavingsGoalsEnabled: enabled }));
+    // Sync to server
+    api.customSavingsGoals.setEnabled(enabled).catch((e) => {
+      console.error("Failed to sync custom savings goals enabled preference:", e);
+    });
+  };
+
   return (
-    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled }}>
+    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled }}>
       {children}
     </UIPreferencesContext.Provider>
   );

@@ -18,7 +18,7 @@ interface SettingsProps {
 export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled } = useUIPreferences();
+  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -42,6 +42,7 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [showRetirementBreakdownModal, setShowRetirementBreakdownModal] = useState(false);
   const [showRecurringWagesInfoModal, setShowRecurringWagesInfoModal] = useState(false);
   const [showCurrentAccountInfoModal, setShowCurrentAccountInfoModal] = useState(false);
+  const [showCustomSavingsGoalsInfoModal, setShowCustomSavingsGoalsInfoModal] = useState(false);
   
   // Recurring wages state
   const [recurringWages, setRecurringWages] = useState<RecurringWage[]>([]);
@@ -354,6 +355,47 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       currentAccountEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Custom Savings Goals
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Enable Custom Savings Goals
+                    </label>
+                    <button
+                      onClick={() => setShowCustomSavingsGoalsInfoModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How to use custom savings goals"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Create custom financial goals and track your progress
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCustomSavingsGoalsEnabled(!customSavingsGoalsEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    customSavingsGoalsEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      customSavingsGoalsEnabled ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -894,6 +936,63 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           <div className="flex gap-2 pt-4">
             <Button
               onClick={() => setShowCurrentAccountInfoModal(false)}
+              className="w-full"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showCustomSavingsGoalsInfoModal} onClose={() => setShowCustomSavingsGoalsInfoModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Use Custom Savings Goals
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What are custom savings goals?</p>
+              <p>Custom savings goals let you create and track your own financial targets beyond the standard savings and retirement accounts. Perfect for saving towards specific things like a vacation, a car, or a home.</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Enable/Disable behavior:</p>
+              <ul className="space-y-1">
+                <li><span className="font-medium">When enabled:</span> You can add, edit, and delete custom savings goals with target amounts.</li>
+                <li><span className="font-medium">When disabled:</span> The card hides. Your saved goals are preserved in case you re-enable it.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How to add a goal:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Toggle "Enable Custom Savings Goals" to on</li>
+                <li>Click the + button on the card</li>
+                <li>Enter a goal name (e.g., "Holiday Fund")</li>
+                <li>Set your target amount</li>
+                <li>Track your progress as you add money towards each goal</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Managing your goals:</p>
+              <p>You can edit goal names and amounts, or delete goals when you've saved enough. Your goals are stored locally, so they persist between sessions.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Important notes:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Goals are separate from your main savings and retirement accounts</li>
+                <li>This is a tracking feature - amounts are manually updated by you</li>
+                <li>Each goal can have its own target to work towards</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowCustomSavingsGoalsInfoModal(false)}
               className="w-full"
             >
               Got it

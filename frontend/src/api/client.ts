@@ -250,6 +250,16 @@ export const api = {
       }),
   },
 
+  customSavingsGoals: {
+    getEnabled: () =>
+      request<{ enabled: boolean }>(`/custom-savings-goals/preferences/enabled`),
+    setEnabled: (enabled: boolean) =>
+      request<{ enabled: boolean }>(`/custom-savings-goals/preferences/enabled`, {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      }),
+  },
+
   retirementSavings: {
     get: () => request<{ retirement_savings: number }>("/retirement-savings"),
     update: (retirement_savings: number) =>

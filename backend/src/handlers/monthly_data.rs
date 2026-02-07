@@ -505,6 +505,64 @@ pub async fn set_current_account_enabled(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/custom-savings-goals/preferences/enabled",
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Custom Savings Goals",
+    summary = "Get custom savings goals enabled status",
+    description = "Retrieves whether custom savings goals are enabled for the user."
+)]
+pub async fn get_custom_savings_goals_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled: i64 = sqlx::query_scalar(
+        "SELECT custom_savings_goals_enabled FROM users WHERE id = ?",
+    )
+    .bind(claims.sub)
+    .fetch_one(&pool)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/custom-savings-goals/preferences/enabled",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Custom Savings Goals",
+    summary = "Set custom savings goals enabled status",
+    description = "Enables or disables custom savings goals for the user."
+)]
+pub async fn set_custom_savings_goals_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled = payload
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| PaymeError::BadRequest("Invalid payload".to_string()))?;
+
+    let enabled_int = if enabled { 1 } else { 0 };
+
+    sqlx::query("UPDATE users SET custom_savings_goals_enabled = ? WHERE id = ?")
+        .bind(enabled_int)
+        .bind(claims.sub)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled })))
+}
+
+#[utoipa::path(
     post,
     path = "/api/months/{month_id}/transfer",
     params(("month_id" = i64, Path, description = "Month ID")),
