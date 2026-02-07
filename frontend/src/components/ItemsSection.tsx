@@ -7,7 +7,7 @@ import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
-import { useToast } from "../hooks";
+import { useToast, useFormValidation, validationRules } from "../hooks";
 
 interface ItemsSectionProps {
   monthId: number;
@@ -37,8 +37,14 @@ export function ItemsSection({
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const { fieldErrors, validateField, validateAll, clearAll } = useFormValidation({
+    description: [validationRules.required("Description"), validationRules.minLength("Description", 1)],
+    amount: [validationRules.required("Amount"), validationRules.positive("Amount")],
+    categoryId: [validationRules.required("Category")],
+  });
+
   const handleAdd = async () => {
-    if (!description || !amount || !categoryId) return;
+    if (!validateAll({ description, amount, categoryId })) return;
     setAddLoading(true);
     try {
       await api.items.create(monthId, {
@@ -59,7 +65,7 @@ export function ItemsSection({
   };
 
   const handleUpdate = async (id: number) => {
-    if (!description || !amount || !categoryId) return;
+    if (!validateAll({ description, amount, categoryId })) return;
     setUpdateLoading(true);
     try {
       await api.items.update(monthId, id, {
@@ -113,6 +119,7 @@ export function ItemsSection({
     setCategoryId("");
     setSpentOn(new Date().toISOString().split("T")[0]);
     setIsAdding(false);
+    clearAll();
   };
 
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.label }));
@@ -163,18 +170,29 @@ export function ItemsSection({
             <Input
               placeholder="Description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                validateField("description", e.target.value);
+              }}
+              error={fieldErrors.description}
             />
             <Input
               type="number"
               placeholder="Amount"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                validateField("amount", e.target.value);
+              }}
+              error={fieldErrors.amount}
             />
             <Select
               options={categoryOptions}
               value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
+              onChange={(e) => {
+                setCategoryId(e.target.value);
+                validateField("categoryId", e.target.value);
+              }}
             />
             <Input
               type="date"
@@ -183,7 +201,7 @@ export function ItemsSection({
             />
           </div>
           <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading} disabled={addLoading || !!fieldErrors.description || !!fieldErrors.amount || !!fieldErrors.categoryId}>
               <Check size={16} className="mr-1" />
               Add
             </Button>

@@ -4,7 +4,7 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
-import { useLocalStorage } from "../hooks";
+import { useLocalStorage, useFormValidation, validationRules } from "../hooks";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
 
@@ -27,6 +27,11 @@ export function RetirementBreakdownCard() {
   const [addLoading, setAddLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
 
+  const { fieldErrors, validateField, validateAll, clearAll } = useFormValidation({
+    label: [validationRules.required("Label"), validationRules.minLength("Label", 1)],
+    amount: [validationRules.required("Amount"), validationRules.positive("Amount")],
+  });
+
   const saveItems = (items: BreakdownItem[]) => {
     setBreakdownItems(items);
     // Notify RetirementSavingsCard of updates
@@ -34,7 +39,7 @@ export function RetirementBreakdownCard() {
   };
 
   const handleAdd = () => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setAddLoading(true);
     try {
       const generateId = () => Date.now().toString();
@@ -51,7 +56,7 @@ export function RetirementBreakdownCard() {
   };
 
   const handleUpdate = (id: string) => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setUpdateLoading(true);
     try {
       const updated = breakdownItems.map((item) =>
@@ -85,6 +90,7 @@ export function RetirementBreakdownCard() {
     setLabel("");
     setAmount("");
     setIsAdding(false);
+    clearAll();
   };
 
   if (!retirementBreakdownEnabled && breakdownItems.length === 0) {
@@ -118,17 +124,25 @@ export function RetirementBreakdownCard() {
             <Input
               placeholder="Account/Source"
               value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              onChange={(e) => {
+                setLabel(e.target.value);
+                validateField("label", e.target.value);
+              }}
+              error={fieldErrors.label}
             />
             <Input
               type="number"
               placeholder="Amount"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                validateField("amount", e.target.value);
+              }}
+              error={fieldErrors.amount}
             />
           </div>
           <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading} disabled={!!fieldErrors.label || !!fieldErrors.amount}>
               <Check size={16} className="mr-1" />
               Add
             </Button>
@@ -166,7 +180,11 @@ export function RetirementBreakdownCard() {
                         <Input
                           placeholder="Label"
                           value={label}
-                          onChange={(e) => setLabel(e.target.value)}
+                          onChange={(e) => {
+                            setLabel(e.target.value);
+                            validateField("label", e.target.value);
+                          }}
+                          error={fieldErrors.label}
                           className="text-xs"
                         />
                       </td>
@@ -175,7 +193,11 @@ export function RetirementBreakdownCard() {
                           type="number"
                           placeholder="Amount"
                           value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
+                          onChange={(e) => {
+                            setAmount(e.target.value);
+                            validateField("amount", e.target.value);
+                          }}
+                          error={fieldErrors.amount}
                           className="text-xs text-right"
                         />
                       </td>

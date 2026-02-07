@@ -7,6 +7,7 @@ import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
+import { useToast, useFormValidation, validationRules } from "../hooks";
 
 interface FixedExpensesProps {
   monthId: number;
@@ -17,6 +18,7 @@ interface FixedExpensesProps {
 
 export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: FixedExpensesProps) {
   const { formatCurrency } = useCurrency();
+  const { success, error } = useToast();
   const [isManaging, setIsManaging] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -27,33 +29,42 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
   const [addLoading, setAddLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
 
+  const { fieldErrors, validateField, validateAll, clearAll } = useFormValidation({
+    label: [validationRules.required("Label"), validationRules.minLength("Label", 1)],
+    amount: [validationRules.required("Amount"), validationRules.positive("Amount")],
+  });
+
   const handleAdd = async () => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setAddLoading(true);
     try {
       await api.monthlyFixedExpenses.create(monthId, { label, amount: parseFloat(amount) });
+      success(`Expense added: ${label}`);
       setLabel("");
       setAmount("");
       setIsAdding(false);
+      clearAll();
       await onUpdate();
     } catch {
-      // Error handling
+      error("Failed to add expense");
     } finally {
       setAddLoading(false);
     }
   };
 
   const handleUpdate = async (id: number) => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setUpdateLoading(true);
     try {
       await api.monthlyFixedExpenses.update(monthId, id, { label, amount: parseFloat(amount) });
+      success("Expense updated");
       setEditingId(null);
       setLabel("");
       setAmount("");
+      clearAll();
       await onUpdate();
     } catch {
-      // Error handling
+      error("Failed to update expense");
     } finally {
       setUpdateLoading(false);
     }
@@ -89,6 +100,7 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
     setLabel("");
     setAmount("");
     setIsAdding(false);
+    clearAll();
   };
 
   const total = expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -153,7 +165,11 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
                     <Input
                       placeholder="Label"
                       value={label}
-                      onChange={(e) => setLabel(e.target.value)}
+                      onChange={(e) => {
+                        setLabel(e.target.value);
+                        validateField("label", e.target.value);
+                      }}
+                      error={fieldErrors.label}
                     />
                   </div>
                   <div className="w-24">
@@ -161,7 +177,11 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
                       type="number"
                       placeholder="Amount"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        validateField("amount", e.target.value);
+                      }}
+                      error={fieldErrors.amount}
                     />
                   </div>
                   <button
@@ -208,7 +228,11 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
                 <Input
                   placeholder="Label"
                   value={label}
-                  onChange={(e) => setLabel(e.target.value)}
+                  onChange={(e) => {
+                    setLabel(e.target.value);
+                    validateField("label", e.target.value);
+                  }}
+                  error={fieldErrors.label}
                 />
               </div>
               <div className="w-24">
@@ -216,10 +240,14 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
                   type="number"
                   placeholder="Amount"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    validateField("amount", e.target.value);
+                  }}
+                  error={fieldErrors.amount}
                 />
               </div>
-              <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
+              <Button size="sm" onClick={handleAdd} isLoading={addLoading} disabled={!!fieldErrors.label || !!fieldErrors.amount}>
                 <Check size={16} />
               </Button>
               <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={addLoading}>

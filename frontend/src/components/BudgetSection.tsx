@@ -8,7 +8,7 @@ import { ProgressBar } from "./ui/ProgressBar";
 import { Modal } from "./ui/Modal";
 import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
-import { useToast } from "../hooks";
+import { useToast, useFormValidation, validationRules } from "../hooks";
 
 interface BudgetSectionProps {
   monthId: number;
@@ -39,8 +39,13 @@ export function BudgetSection({
   const [updateCategoryLoading, setUpdateCategoryLoading] = useState(false);
   const [updateBudgetLoading, setUpdateBudgetLoading] = useState(false);
 
+  const { fieldErrors, validateField, validateAll, clearAll } = useFormValidation({
+    label: [validationRules.required("Label"), validationRules.minLength("Label", 1)],
+    amount: [validationRules.required("Amount"), validationRules.positive("Amount")],
+  });
+
   const handleAddCategory = async () => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setAddCategoryLoading(true);
     try {
       await api.categories.create({ label, default_amount: parseFloat(amount) });
@@ -48,6 +53,7 @@ export function BudgetSection({
       setLabel("");
       setAmount("");
       setIsAddingCategory(false);
+      clearAll();
       await onUpdate();
     } catch {
       error("Failed to create category");
@@ -57,7 +63,7 @@ export function BudgetSection({
   };
 
   const handleUpdateCategory = async (id: number) => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setUpdateCategoryLoading(true);
     try {
       await api.categories.update(id, { label, default_amount: parseFloat(amount) });
@@ -65,6 +71,7 @@ export function BudgetSection({
       setEditingCategoryId(null);
       setLabel("");
       setAmount("");
+      clearAll();
       await onUpdate();
     } catch {
       error("Failed to update category");
@@ -93,13 +100,14 @@ export function BudgetSection({
   };
 
   const handleUpdateBudget = async (budgetId: number) => {
-    if (!amount) return;
+    if (!validateAll({ amount })) return;
     setUpdateBudgetLoading(true);
     try {
       await api.budgets.update(monthId, budgetId, parseFloat(amount));
       success("Budget updated");
       setEditingBudgetId(null);
       setAmount("");
+      clearAll();
       await onUpdate();
     } catch {
       error("Failed to update budget");
@@ -125,6 +133,7 @@ export function BudgetSection({
     setLabel("");
     setAmount("");
     setIsAddingCategory(false);
+    clearAll();
   };
 
   return (
@@ -155,7 +164,11 @@ export function BudgetSection({
                       type="number"
                       placeholder="Budget"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        validateField("amount", e.target.value);
+                      }}
+                      error={fieldErrors.amount}
                     />
                   </div>
                   <button
@@ -219,7 +232,11 @@ export function BudgetSection({
                     <Input
                       placeholder="Label"
                       value={label}
-                      onChange={(e) => setLabel(e.target.value)}
+                      onChange={(e) => {
+                        setLabel(e.target.value);
+                        validateField("label", e.target.value);
+                      }}
+                      error={fieldErrors.label}
                     />
                   </div>
                   <div className="w-24">
@@ -227,7 +244,11 @@ export function BudgetSection({
                       type="number"
                       placeholder="Default"
                       value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
+                      onChange={(e) => {
+                        setAmount(e.target.value);
+                        validateField("amount", e.target.value);
+                      }}
+                      error={fieldErrors.amount}
                     />
                   </div>
                   <button
@@ -276,7 +297,11 @@ export function BudgetSection({
                 <Input
                   placeholder="Category name"
                   value={label}
-                  onChange={(e) => setLabel(e.target.value)}
+                  onChange={(e) => {
+                    setLabel(e.target.value);
+                    validateField("label", e.target.value);
+                  }}
+                  error={fieldErrors.label}
                 />
               </div>
               <div className="w-24">
@@ -284,10 +309,14 @@ export function BudgetSection({
                   type="number"
                   placeholder="Default"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    validateField("amount", e.target.value);
+                  }}
+                  error={fieldErrors.amount}
                 />
               </div>
-              <Button size="sm" onClick={handleAddCategory} isLoading={addCategoryLoading}>
+              <Button size="sm" onClick={handleAddCategory} isLoading={addCategoryLoading} disabled={!!fieldErrors.label || !!fieldErrors.amount}>
                 <Check size={16} />
               </Button>
               <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={addCategoryLoading}>

@@ -6,7 +6,7 @@ import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
-import { useToast } from "../hooks";
+import { useToast, useFormValidation, validationRules } from "../hooks";
 
 interface IncomeSectionProps {
   monthId: number;
@@ -27,8 +27,13 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const { fieldErrors, validateField, validateAll, clearAll } = useFormValidation({
+    label: [validationRules.required("Label"), validationRules.minLength("Label", 1)],
+    amount: [validationRules.required("Amount"), validationRules.positive("Amount")],
+  });
+
   const handleAdd = async () => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setAddLoading(true);
     try {
       await api.income.create(monthId, { label, amount: parseFloat(amount) });
@@ -36,6 +41,7 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
       setLabel("");
       setAmount("");
       setIsAdding(false);
+      clearAll();
       await onUpdate();
     } catch {
       error("Failed to add income");
@@ -45,7 +51,7 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
   };
 
   const handleUpdate = async (id: number) => {
-    if (!label || !amount) return;
+    if (!validateAll({ label, amount })) return;
     setUpdateLoading(true);
     try {
       await api.income.update(monthId, id, { label, amount: parseFloat(amount) });
@@ -53,6 +59,7 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
       setEditingId(null);
       setLabel("");
       setAmount("");
+      clearAll();
       await onUpdate();
     } catch {
       error("Failed to update income");
@@ -91,6 +98,7 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
     setLabel("");
     setAmount("");
     setIsAdding(false);
+    clearAll();
   };
 
   return (
@@ -119,7 +127,11 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
                   <Input
                     placeholder="Label"
                     value={label}
-                    onChange={(e) => setLabel(e.target.value)}
+                    onChange={(e) => {
+                      setLabel(e.target.value);
+                      validateField("label", e.target.value);
+                    }}
+                    error={fieldErrors.label}
                   />
                 </div>
                 <div className="w-24">
@@ -127,7 +139,11 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
                     type="number"
                     placeholder="Amount"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => {
+                      setAmount(e.target.value);
+                      validateField("amount", e.target.value);
+                    }}
+                    error={fieldErrors.amount}
                   />
                 </div>
                 <button
@@ -182,7 +198,11 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
               <Input
                 placeholder="Label"
                 value={label}
-                onChange={(e) => setLabel(e.target.value)}
+                onChange={(e) => {
+                  setLabel(e.target.value);
+                  validateField("label", e.target.value);
+                }}
+                error={fieldErrors.label}
               />
             </div>
             <div className="w-24">
@@ -190,10 +210,14 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
                 type="number"
                 placeholder="Amount"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => {
+                  setAmount(e.target.value);
+                  validateField("amount", e.target.value);
+                }}
+                error={fieldErrors.amount}
               />
             </div>
-            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading} disabled={addLoading || !!fieldErrors.label || !!fieldErrors.amount}>
               <Check size={16} />
             </Button>
             <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={addLoading}>

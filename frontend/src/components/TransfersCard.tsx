@@ -8,7 +8,7 @@ import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
-import { useToast } from "../hooks";
+import { useToast, useFormValidation, validationRules } from "../hooks";
 
 interface TransfersCardProps {
   monthId: number;
@@ -39,6 +39,11 @@ export function TransfersCard({
   const [addLoading, setAddLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
 
+  const { fieldErrors, validateField, validateAll, clearAll } = useFormValidation({
+    description: [validationRules.required("Description"), validationRules.minLength("Description", 1)],
+    amount: [validationRules.required("Amount"), validationRules.positive("Amount")],
+  });
+
   const transferItems = items.filter(
     (item) =>
       item.savings_destination === "savings" ||
@@ -46,7 +51,7 @@ export function TransfersCard({
   );
 
   const handleAdd = async () => {
-    if (!description || !amount) return;
+    if (!validateAll({ description, amount })) return;
     setAddLoading(true);
     try {
       const catId = categories.length > 0 ? categories[0].id : 1;
@@ -59,6 +64,7 @@ export function TransfersCard({
       });
       success("Transfer added");
       resetForm();
+      clearAll();
       await onUpdate();
     } catch {
       error("Failed to add transfer");
@@ -68,7 +74,7 @@ export function TransfersCard({
   };
 
   const handleUpdate = async (id: number) => {
-    if (!description || !amount) return;
+    if (!validateAll({ description, amount })) return;
     setUpdateLoading(true);
     try {
       const catId = categories.length > 0 ? categories[0].id : 1;
@@ -81,6 +87,7 @@ export function TransfersCard({
       });
       success("Transfer updated");
       resetForm();
+      clearAll();
       await onUpdate();
     } catch {
       error("Failed to update transfer");
@@ -123,6 +130,7 @@ export function TransfersCard({
     setSpentOn(new Date().toISOString().split("T")[0]);
     setSavingsDestination("savings");
     setIsAdding(false);
+    clearAll();
   };
 
   return (
@@ -150,13 +158,21 @@ export function TransfersCard({
             <Input
               placeholder="Description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                validateField("description", e.target.value);
+              }}
+              error={fieldErrors.description}
             />
             <Input
               type="number"
               placeholder="Amount"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                validateField("amount", e.target.value);
+              }}
+              error={fieldErrors.amount}
             />
             <Input
               type="date"
@@ -180,7 +196,7 @@ export function TransfersCard({
             </div>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleAdd} isLoading={addLoading}>
+            <Button size="sm" onClick={handleAdd} isLoading={addLoading} disabled={!!fieldErrors.description || !!fieldErrors.amount}>
               <Check size={16} className="mr-1" />
               Add
             </Button>
@@ -231,7 +247,11 @@ export function TransfersCard({
                       <Input
                         placeholder="Description"
                         value={description}
-                        onChange={(e) => setDescription(e.target.value)}
+                        onChange={(e) => {
+                          setDescription(e.target.value);
+                          validateField("description", e.target.value);
+                        }}
+                        error={fieldErrors.description}
                         className="text-xs"
                       />
                     </td>
@@ -251,7 +271,11 @@ export function TransfersCard({
                         type="number"
                         placeholder="Amount"
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                        onChange={(e) => {
+                          setAmount(e.target.value);
+                          validateField("amount", e.target.value);
+                        }}
+                        error={fieldErrors.amount}
                         className="text-xs text-right"
                       />
                     </td>

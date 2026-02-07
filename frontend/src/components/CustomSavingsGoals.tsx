@@ -5,7 +5,7 @@ import { Input } from "./ui/Input";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
-import { useLocalStorage } from "../hooks";
+import { useLocalStorage, useFormValidation, validationRules } from "../hooks";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface SavingsGoal {
@@ -30,9 +30,17 @@ export function CustomSavingsGoals() {
   const [addLoading, setAddLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
 
+  const { fieldErrors: addFieldErrors, validateField: validateAddField, validateAll: validateAddAll, clearAll: clearAddForm } = useFormValidation({
+    newGoalName: [validationRules.required("Goal Name"), validationRules.minLength("Goal Name", 1)],
+    newGoalTarget: [validationRules.required("Target Amount"), validationRules.positive("Target Amount")],
+  });
+
+  const { fieldErrors: editFieldErrors, validateField: validateEditField, validateAll: validateEditAll } = useFormValidation({
+    editCurrentAmount: [validationRules.required("Amount"), validationRules.nonNegative("Amount")],
+  });
+
   const addNewGoal = () => {
-    const target = parseFloat(newGoalTarget);
-    if (!newGoalName.trim() || isNaN(target) || target <= 0) return;
+    if (!validateAddAll({ newGoalName, newGoalTarget })) return;
 
     setAddLoading(true);
     try {
@@ -40,13 +48,14 @@ export function CustomSavingsGoals() {
         id: Date.now().toString(),
         name: newGoalName.trim(),
         currentAmount: 0,
-        targetAmount: target,
+        targetAmount: parseFloat(newGoalTarget),
       };
 
       setGoals([...goals, newGoal]);
       setNewGoalName("");
       setNewGoalTarget("");
       setIsAddingNew(false);
+      clearAddForm();
     } finally {
       setAddLoading(false);
     }
@@ -63,13 +72,12 @@ export function CustomSavingsGoals() {
   };
 
   const saveEditAmount = (goalId: string) => {
-    const amount = parseFloat(editCurrentAmount);
-    if (isNaN(amount) || amount < 0) return;
+    if (!validateEditAll({ editCurrentAmount })) return;
 
     setUpdateLoading(true);
     try {
       setGoals(goals.map(goal => 
-        goal.id === goalId ? { ...goal, currentAmount: amount } : goal
+        goal.id === goalId ? { ...goal, currentAmount: parseFloat(editCurrentAmount) } : goal
       ));
       setEditingGoalId(null);
       setEditCurrentAmount("");
@@ -92,6 +100,7 @@ export function CustomSavingsGoals() {
     setIsAddingNew(false);
     setNewGoalName("");
     setNewGoalTarget("");
+    clearAddForm();
   };
 
   return (
@@ -143,7 +152,11 @@ export function CustomSavingsGoals() {
                       <Input
                         type="number"
                         value={editCurrentAmount}
-                        onChange={(e) => setEditCurrentAmount(e.target.value)}
+                        onChange={(e) => {
+                          setEditCurrentAmount(e.target.value);
+                          validateEditField("editCurrentAmount", e.target.value);
+                        }}
+                        error={editFieldErrors.editCurrentAmount}
                         className="flex-1 !py-1 !text-sm"
                         autoFocus
                         placeholder="Current amount"
@@ -224,7 +237,11 @@ export function CustomSavingsGoals() {
               <Input
                 type="text"
                 value={newGoalName}
-                onChange={(e) => setNewGoalName(e.target.value)}
+                onChange={(e) => {
+                  setNewGoalName(e.target.value);
+                  validateAddField("newGoalName", e.target.value);
+                }}
+                error={addFieldErrors.newGoalName}
                 placeholder="e.g., Emergency Fund, Vacation, New Car"
                 className="w-full"
                 autoFocus
@@ -238,7 +255,11 @@ export function CustomSavingsGoals() {
               <Input
                 type="number"
                 value={newGoalTarget}
-                onChange={(e) => setNewGoalTarget(e.target.value)}
+                onChange={(e) => {
+                  setNewGoalTarget(e.target.value);
+                  validateAddField("newGoalTarget", e.target.value);
+                }}
+                error={addFieldErrors.newGoalTarget}
                 placeholder="0.00"
                 className="w-full"
               />
@@ -248,7 +269,7 @@ export function CustomSavingsGoals() {
               <Button 
                 onClick={addNewGoal}
                 className="flex-1"
-                disabled={!newGoalName.trim() || !newGoalTarget || parseFloat(newGoalTarget) <= 0}
+                disabled={!!addFieldErrors.newGoalName || !!addFieldErrors.newGoalTarget}
                 isLoading={addLoading}
               >
                 Add Goal
