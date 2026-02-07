@@ -7,6 +7,7 @@ import { ProgressBar } from "./ui/ProgressBar";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { useCurrency } from "../context/CurrencyContext";
+import { useToast } from "../hooks";
 
 interface SavingsCardProps {
   monthId: number;
@@ -26,6 +27,7 @@ export function SavingsCard({ monthId, initialSavings, isReadOnly, onSavingsChan
   const [isEditingGoal, setIsEditingGoal] = useState(false);
 
   const { formatCurrency } = useCurrency();
+  const { success, error } = useToast();
 
   useEffect(() => {
     if (initialSavings && refreshTrigger === 0) {
@@ -52,10 +54,15 @@ export function SavingsCard({ monthId, initialSavings, isReadOnly, onSavingsChan
   const saveEdit = async () => {
     const value = parseFloat(editValue);
     if (isNaN(value)) return;
-    await api.monthlySavings.update(monthId, { savings: value });
-    setSavings(value);
-    onSavingsChange?.(value);
-    setIsEditing(false);
+    try {
+      await api.monthlySavings.update(monthId, { savings: value });
+      success("Savings updated");
+      setSavings(value);
+      onSavingsChange?.(value);
+      setIsEditing(false);
+    } catch {
+      error("Failed to update savings");
+    }
   };
 
   const startEditGoal = () => {
@@ -72,9 +79,14 @@ export function SavingsCard({ monthId, initialSavings, isReadOnly, onSavingsChan
   const saveEditGoal = async () => {
     const value = parseFloat(editGoalValue);
     if (isNaN(value) || value < 0) return;
-    await api.monthlySavings.update(monthId, { savings_goal: value });
-    setSavingsGoal(value);
-    setIsEditingGoal(false);
+    try {
+      await api.monthlySavings.update(monthId, { savings_goal: value });
+      success("Savings goal updated");
+      setSavingsGoal(value);
+      setIsEditingGoal(false);
+    } catch {
+      error("Failed to update savings goal");
+    }
   };
 
   const target = savingsGoal > 0 ? savingsGoal : 0;

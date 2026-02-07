@@ -5,6 +5,7 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { useCurrency } from "../context/CurrencyContext";
+import { useToast } from "../hooks";
 
 interface IncomeSectionProps {
   monthId: number;
@@ -15,6 +16,7 @@ interface IncomeSectionProps {
 
 export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: IncomeSectionProps) {
   const { formatCurrency } = useCurrency();
+  const { success, error } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
@@ -22,25 +24,40 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
 
   const handleAdd = async () => {
     if (!label || !amount) return;
-    await api.income.create(monthId, { label, amount: parseFloat(amount) });
-    setLabel("");
-    setAmount("");
-    setIsAdding(false);
-    await onUpdate();
+    try {
+      await api.income.create(monthId, { label, amount: parseFloat(amount) });
+      success(`Added income: ${label}`);
+      setLabel("");
+      setAmount("");
+      setIsAdding(false);
+      await onUpdate();
+    } catch {
+      error("Failed to add income");
+    }
   };
 
   const handleUpdate = async (id: number) => {
     if (!label || !amount) return;
-    await api.income.update(monthId, id, { label, amount: parseFloat(amount) });
-    setEditingId(null);
-    setLabel("");
-    setAmount("");
-    await onUpdate();
+    try {
+      await api.income.update(monthId, id, { label, amount: parseFloat(amount) });
+      success(`Updated income: ${label}`);
+      setEditingId(null);
+      setLabel("");
+      setAmount("");
+      await onUpdate();
+    } catch {
+      error("Failed to update income");
+    }
   };
 
   const handleDelete = async (id: number) => {
-    await api.income.delete(monthId, id);
-    await onUpdate();
+    try {
+      await api.income.delete(monthId, id);
+      success("Income deleted");
+      await onUpdate();
+    } catch {
+      error("Failed to delete income");
+    }
   };
 
   const startEdit = (entry: IncomeEntry) => {

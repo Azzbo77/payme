@@ -4,6 +4,7 @@ import { Modal } from "./ui/Modal";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { useCurrency } from "../context/CurrencyContext";
+import { useToast } from "../hooks";
 
 interface TransferModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export function TransferFromCurrentModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { formatCurrency } = useCurrency();
+  const { success, error: showError } = useToast();
 
   const handleTransfer = async () => {
     setError("");
@@ -43,11 +45,13 @@ export function TransferFromCurrentModal({
     setLoading(true);
     try {
       await api.monthlyCurrentAccount.transfer(monthId, transferAmount, destination);
+      success(`Transferred ${formatCurrency(transferAmount)} to ${destination}`);
       setAmount("");
       setDestination("savings");
       await onTransferSuccess();
       onClose();
     } catch (err) {
+      showError("Failed to transfer. Please try again.");
       setError("Failed to transfer. Please try again.");
     } finally {
       setLoading(false);

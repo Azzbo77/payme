@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useAuth } from "./context/AuthContext";
+import { ToastContext } from "./context/ToastContext";
+import { ToastContainer } from "./components/Toast";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Dashboard } from "./pages/Dashboard";
@@ -9,6 +11,7 @@ import { Loader2 } from "lucide-react";
 
 export default function App() {
   const { user, loading } = useAuth();
+  const toastContext = useContext(ToastContext);
   const [showRegister, setShowRegister] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
@@ -59,16 +62,19 @@ export default function App() {
   }
 
   return (
-    <Dashboard
-      onSettingsClick={() => {
-        setSettingsFrom("dashboard");
-        setShowSettings(true);
-      }}
-      onSummaryClick={(monthId) => {
-        setSummaryMonthId(monthId ?? null);
-        setShowSummary(true);
-      }}
-    />
+    <>
+      <Dashboard
+        onSettingsClick={() => {
+          setSettingsFrom("dashboard");
+          setShowSettings(true);
+        }}
+        onSummaryClick={(monthId) => {
+          setSummaryMonthId(monthId ?? null);
+          setShowSummary(true);
+        }}
+      />
+      {toastContext && <ToastContainer toasts={toastContext.toasts} onRemove={toastContext.removeToast} />}
+    </>
   );
 }
 

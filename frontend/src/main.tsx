@@ -6,15 +6,18 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { CurrencyProvider } from "./context/CurrencyContext";
 import { UIPreferencesProvider } from "./context/UIPreferencesContext";
+import { ToastProvider } from "./context/ToastContext";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
       <CurrencyProvider>
         <UIPreferencesProvider>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </ToastProvider>
         </UIPreferencesProvider>
       </CurrencyProvider>
     </ThemeProvider>

@@ -7,6 +7,7 @@ import { Button } from "./ui/Button";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Modal } from "./ui/Modal";
 import { useCurrency } from "../context/CurrencyContext";
+import { useToast } from "../hooks";
 
 interface BudgetSectionProps {
   monthId: number;
@@ -24,6 +25,7 @@ export function BudgetSection({
   onUpdate,
 }: BudgetSectionProps) {
   const { formatCurrency } = useCurrency();
+  const { success, error } = useToast();
   const [isManaging, setIsManaging] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
@@ -33,33 +35,53 @@ export function BudgetSection({
 
   const handleAddCategory = async () => {
     if (!label || !amount) return;
-    await api.categories.create({ label, default_amount: parseFloat(amount) });
-    setLabel("");
-    setAmount("");
-    setIsAddingCategory(false);
-    await onUpdate();
+    try {
+      await api.categories.create({ label, default_amount: parseFloat(amount) });
+      success(`Category created: ${label}`);
+      setLabel("");
+      setAmount("");
+      setIsAddingCategory(false);
+      await onUpdate();
+    } catch {
+      error("Failed to create category");
+    }
   };
 
   const handleUpdateCategory = async (id: number) => {
     if (!label || !amount) return;
-    await api.categories.update(id, { label, default_amount: parseFloat(amount) });
-    setEditingCategoryId(null);
-    setLabel("");
-    setAmount("");
-    await onUpdate();
+    try {
+      await api.categories.update(id, { label, default_amount: parseFloat(amount) });
+      success(`Category updated: ${label}`);
+      setEditingCategoryId(null);
+      setLabel("");
+      setAmount("");
+      await onUpdate();
+    } catch {
+      error("Failed to update category");
+    }
   };
 
   const handleDeleteCategory = async (id: number) => {
-    await api.categories.delete(id);
-    await onUpdate();
+    try {
+      await api.categories.delete(id);
+      success("Category deleted");
+      await onUpdate();
+    } catch {
+      error("Failed to delete category");
+    }
   };
 
   const handleUpdateBudget = async (budgetId: number) => {
     if (!amount) return;
-    await api.budgets.update(monthId, budgetId, parseFloat(amount));
-    setEditingBudgetId(null);
-    setAmount("");
-    await onUpdate();
+    try {
+      await api.budgets.update(monthId, budgetId, parseFloat(amount));
+      success("Budget updated");
+      setEditingBudgetId(null);
+      setAmount("");
+      await onUpdate();
+    } catch {
+      error("Failed to update budget");
+    }
   };
 
   const startEditCategory = (cat: BudgetCategory) => {

@@ -6,6 +6,7 @@ import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
 import { useCurrency } from "../context/CurrencyContext";
+import { useToast } from "../hooks";
 
 interface ItemsSectionProps {
   monthId: number;
@@ -23,6 +24,7 @@ export function ItemsSection({
   onUpdate,
 }: ItemsSectionProps) {
   const { formatCurrency } = useCurrency();
+  const { success, error } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [description, setDescription] = useState("");
@@ -32,33 +34,48 @@ export function ItemsSection({
 
   const handleAdd = async () => {
     if (!description || !amount || !categoryId) return;
-    await api.items.create(monthId, {
-      description,
-      amount: parseFloat(amount),
-      category_id: parseInt(categoryId),
-      spent_on: spentOn,
-      savings_destination: "none",
-    });
-    resetForm();
-    await onUpdate();
+    try {
+      await api.items.create(monthId, {
+        description,
+        amount: parseFloat(amount),
+        category_id: parseInt(categoryId),
+        spent_on: spentOn,
+        savings_destination: "none",
+      });
+      success(`Added: ${description}`);
+      resetForm();
+      await onUpdate();
+    } catch {
+      error("Failed to add item");
+    }
   };
 
   const handleUpdate = async (id: number) => {
     if (!description || !amount || !categoryId) return;
-    await api.items.update(monthId, id, {
-      description,
-      amount: parseFloat(amount),
-      category_id: parseInt(categoryId),
-      spent_on: spentOn,
-      savings_destination: "none",
-    });
-    resetForm();
-    await onUpdate();
+    try {
+      await api.items.update(monthId, id, {
+        description,
+        amount: parseFloat(amount),
+        category_id: parseInt(categoryId),
+        spent_on: spentOn,
+        savings_destination: "none",
+      });
+      success(`Updated: ${description}`);
+      resetForm();
+      await onUpdate();
+    } catch {
+      error("Failed to update item");
+    }
   };
 
   const handleDelete = async (id: number) => {
-    await api.items.delete(monthId, id);
-    await onUpdate();
+    try {
+      await api.items.delete(monthId, id);
+      success("Item deleted");
+      await onUpdate();
+    } catch {
+      error("Failed to delete item");
+    }
   };
 
   const startEdit = (item: ItemWithCategory) => {
