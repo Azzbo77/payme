@@ -5,6 +5,7 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
+import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface FixedExpensesProps {
@@ -21,6 +22,8 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
   const [editingId, setEditingId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleAdd = async () => {
     if (!label || !amount) return;
@@ -40,9 +43,22 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
     await onUpdate();
   };
 
-  const handleDelete = async (id: number) => {
-    await api.monthlyFixedExpenses.delete(monthId, id);
-    await onUpdate();
+  const handleDelete = (id: number) => {
+    setDeleteConfirmId(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmId === null) return;
+    setDeleteLoading(true);
+    try {
+      await api.monthlyFixedExpenses.delete(monthId, deleteConfirmId);
+      setDeleteConfirmId(null);
+      await onUpdate();
+    } catch {
+      // Error handling could be added here
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const startEdit = (expense: MonthlyFixedExpense) => {
@@ -205,6 +221,17 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
           )}
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={deleteConfirmId !== null}
+        title="Delete Expense"
+        message="Are you sure you want to delete this fixed expense? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleteLoading}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </>
   );
 }

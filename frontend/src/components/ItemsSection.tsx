@@ -5,6 +5,7 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
+import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
 import { useToast } from "../hooks";
 
@@ -31,6 +32,8 @@ export function ItemsSection({
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleAdd = async () => {
     if (!description || !amount || !categoryId) return;
@@ -68,13 +71,22 @@ export function ItemsSection({
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
+    setDeleteConfirmId(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmId === null) return;
+    setDeleteLoading(true);
     try {
-      await api.items.delete(monthId, id);
+      await api.items.delete(monthId, deleteConfirmId);
       success("Item deleted");
+      setDeleteConfirmId(null);
       await onUpdate();
     } catch {
       error("Failed to delete item");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -99,6 +111,7 @@ export function ItemsSection({
   const spendingItems = items.filter((item) => item.savings_destination === "none");
 
   return (
+    <>
     <Card className="col-span-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
@@ -302,6 +315,18 @@ export function ItemsSection({
         )}
       </div>
     </Card>
+
+    <ConfirmModal
+      isOpen={deleteConfirmId !== null}
+      title="Delete Item"
+      message="Are you sure you want to delete this item? This action cannot be undone."
+      confirmText="Delete"
+      cancelText="Cancel"
+      isLoading={deleteLoading}
+      onConfirm={handleDeleteConfirm}
+      onCancel={() => setDeleteConfirmId(null)}
+    />
+    </>
   );
 }
 

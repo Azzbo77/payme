@@ -3,6 +3,7 @@ import { Trash2, Edit2, Check, X } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
+import { ConfirmModal } from "./ConfirmModal";
 import { useLocalStorage } from "../hooks";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
@@ -22,6 +23,7 @@ export function RetirementBreakdownCard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const saveItems = (items: BreakdownItem[]) => {
     setBreakdownItems(items);
@@ -51,7 +53,13 @@ export function RetirementBreakdownCard() {
   };
 
   const handleDelete = (id: string) => {
-    saveItems(breakdownItems.filter((item) => item.id !== id));
+    setDeleteConfirmId(id);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteConfirmId === null) return;
+    saveItems(breakdownItems.filter((item) => item.id !== deleteConfirmId));
+    setDeleteConfirmId(null);
   };
 
   const startEdit = (item: BreakdownItem) => {
@@ -72,6 +80,7 @@ export function RetirementBreakdownCard() {
   }
 
   return (
+    <>
     <Card>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -216,5 +225,16 @@ export function RetirementBreakdownCard() {
         )}
       </div>
     </Card>
+
+    <ConfirmModal
+      isOpen={deleteConfirmId !== null}
+      title="Delete Item"
+      message="Are you sure you want to delete this breakdown item?"
+      confirmText="Delete"
+      cancelText="Cancel"
+      onConfirm={handleDeleteConfirm}
+      onCancel={() => setDeleteConfirmId(null)}
+    />
+    </>
   );
 }

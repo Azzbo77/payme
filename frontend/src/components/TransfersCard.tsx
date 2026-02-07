@@ -5,8 +5,10 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
+import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
+import { useToast } from "../hooks";
 
 interface TransfersCardProps {
   monthId: number;
@@ -25,12 +27,15 @@ export function TransfersCard({
 }: TransfersCardProps) {
   const { formatCurrency } = useCurrency();
   const { transfersEnabled } = useUIPreferences();
+  const { success, error } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [spentOn, setSpentOn] = useState(new Date().toISOString().split("T")[0]);
   const [savingsDestination, setSavingsDestination] = useState("savings");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const transferItems = items.filter(
     (item) =>
@@ -66,9 +71,23 @@ export function TransfersCard({
     await onUpdate();
   };
 
-  const handleDelete = async (id: number) => {
-    await api.items.delete(monthId, id);
-    await onUpdate();
+  const handleDelete = (id: number) => {
+    setDeleteConfirmId(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmId === null) return;
+    setDeleteLoading(true);
+    try {
+      await api.items.delete(monthId, deleteConfirmId);
+      success("Transfer deleted");
+      setDeleteConfirmId(null);
+      await onUpdate();
+    } catch {
+      error("Failed to delete transfer");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const startEdit = (item: ItemWithCategory) => {
@@ -89,6 +108,7 @@ export function TransfersCard({
   };
 
   return (
+    <>
     <Card className="col-span-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
@@ -292,5 +312,17 @@ export function TransfersCard({
         )}
       </div>
     </Card>
+
+    <ConfirmModal
+      isOpen={deleteConfirmId !== null}
+      title="Delete Transfer"
+      message="Are you sure you want to delete this transfer? This action cannot be undone."
+      confirmText="Delete"
+      cancelText="Cancel"
+      isLoading={deleteLoading}
+      onConfirm={handleDeleteConfirm}
+      onCancel={() => setDeleteConfirmId(null)}
+    />
+    </>
   );
 }

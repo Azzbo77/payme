@@ -4,6 +4,7 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Button } from "./ui/Button";
+import { ConfirmModal } from "./ConfirmModal";
 import { useLocalStorage } from "../hooks";
 import { useCurrency } from "../context/CurrencyContext";
 
@@ -25,6 +26,7 @@ export function CustomSavingsGoals() {
   const [newGoalTarget, setNewGoalTarget] = useState("");
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [editCurrentAmount, setEditCurrentAmount] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const addNewGoal = () => {
     const target = parseFloat(newGoalTarget);
@@ -65,9 +67,13 @@ export function CustomSavingsGoals() {
   };
 
   const deleteGoal = (goalId: string) => {
-    if (confirm("Are you sure you want to delete this savings goal?")) {
-      setGoals(goals.filter(goal => goal.id !== goalId));
-    }
+    setDeleteConfirmId(goalId);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (deleteConfirmId === null) return;
+    setGoals(goals.filter(goal => goal.id !== deleteConfirmId));
+    setDeleteConfirmId(null);
   };
 
   const cancelAddNew = () => {
@@ -77,6 +83,7 @@ export function CustomSavingsGoals() {
   };
 
   return (
+    <>
     <Card className="!p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -242,5 +249,14 @@ export function CustomSavingsGoals() {
         )}
       </div>
     </Card>
-  );
+    <ConfirmModal
+      isOpen={deleteConfirmId !== null}
+      title="Delete Savings Goal"
+      message="Are you sure you want to delete this savings goal? This action cannot be undone."
+      confirmText="Delete"
+      cancelText="Cancel"
+      onConfirm={handleDeleteConfirm}
+      onCancel={() => setDeleteConfirmId(null)}
+    />
+    </>  );
 }

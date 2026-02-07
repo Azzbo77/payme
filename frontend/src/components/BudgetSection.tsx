@@ -6,6 +6,7 @@ import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Modal } from "./ui/Modal";
+import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
 import { useToast } from "../hooks";
 
@@ -32,6 +33,8 @@ export function BudgetSection({
   const [editingBudgetId, setEditingBudgetId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [deleteCategoryConfirmId, setDeleteCategoryConfirmId] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleAddCategory = async () => {
     if (!label || !amount) return;
@@ -61,13 +64,22 @@ export function BudgetSection({
     }
   };
 
-  const handleDeleteCategory = async (id: number) => {
+  const handleDeleteCategory = (id: number) => {
+    setDeleteCategoryConfirmId(id);
+  };
+
+  const handleDeleteCategoryConfirm = async () => {
+    if (deleteCategoryConfirmId === null) return;
+    setDeleteLoading(true);
     try {
-      await api.categories.delete(id);
+      await api.categories.delete(deleteCategoryConfirmId);
       success("Category deleted");
+      setDeleteCategoryConfirmId(null);
       await onUpdate();
     } catch {
       error("Failed to delete category");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -279,6 +291,17 @@ export function BudgetSection({
           )}
         </div>
       </Modal>
+
+      <ConfirmModal
+        isOpen={deleteCategoryConfirmId !== null}
+        title="Delete Category"
+        message="Are you sure you want to delete this category? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        isLoading={deleteLoading}
+        onConfirm={handleDeleteCategoryConfirm}
+        onCancel={() => setDeleteCategoryConfirmId(null)}
+      />
     </>
   );
 }

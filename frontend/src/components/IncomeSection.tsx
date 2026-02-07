@@ -4,6 +4,7 @@ import { IncomeEntry, api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
+import { ConfirmModal } from "./ConfirmModal";
 import { useCurrency } from "../context/CurrencyContext";
 import { useToast } from "../hooks";
 
@@ -21,6 +22,8 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
   const [editingId, setEditingId] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleAdd = async () => {
     if (!label || !amount) return;
@@ -50,13 +53,22 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
+    setDeleteConfirmId(id);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirmId === null) return;
+    setDeleteLoading(true);
     try {
-      await api.income.delete(monthId, id);
+      await api.income.delete(monthId, deleteConfirmId);
       success("Income deleted");
+      setDeleteConfirmId(null);
       await onUpdate();
     } catch {
       error("Failed to delete income");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -74,7 +86,8 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
   };
 
   return (
-    <Card>
+    <>
+      <Card>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
           Income
@@ -186,6 +199,18 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
         )}
       </div>
     </Card>
+
+    <ConfirmModal
+      isOpen={deleteConfirmId !== null}
+      title="Delete Income"
+      message="Are you sure you want to delete this income entry? This action cannot be undone."
+      confirmText="Delete"
+      cancelText="Cancel"
+      isLoading={deleteLoading}
+      onConfirm={handleDeleteConfirm}
+      onCancel={() => setDeleteConfirmId(null)}
+    />
+    </>
   );
 }
 
