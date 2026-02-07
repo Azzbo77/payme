@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Target, Pencil, Check, X, Trash2, Plus } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Button } from "./ui/Button";
+import { useLocalStorage } from "../hooks";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface SavingsGoal {
@@ -16,30 +17,14 @@ interface SavingsGoal {
 export function CustomSavingsGoals() {
   const { formatCurrency, getCurrencySymbol } = useCurrency();
   
-  // Load goals from localStorage on mount using lazy initializer
-  const [goals, setGoals] = useState<SavingsGoal[]>(() => {
-    const savedGoals = localStorage.getItem("customSavingsGoals");
-    if (savedGoals) {
-      try {
-        return JSON.parse(savedGoals);
-      } catch (e) {
-        console.error("Failed to load savings goals:", e);
-        return [];
-      }
-    }
-    return [];
-  });
+  // Persistent goals with automatic localStorage sync
+  const [goals, setGoals] = useLocalStorage<SavingsGoal[]>("customSavingsGoals", []);
   
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newGoalName, setNewGoalName] = useState("");
   const [newGoalTarget, setNewGoalTarget] = useState("");
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   const [editCurrentAmount, setEditCurrentAmount] = useState("");
-
-  // Save goals to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("customSavingsGoals", JSON.stringify(goals));
-  }, [goals]);
 
   const addNewGoal = () => {
     const target = parseFloat(newGoalTarget);

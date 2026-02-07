@@ -3,6 +3,7 @@ import { Trash2, Edit2, Check, X } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
+import { useLocalStorage } from "../hooks";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
 
@@ -12,22 +13,11 @@ interface BreakdownItem {
   amount: number;
 }
 
-const STORAGE_KEY = "retirementBreakdown";
-
 export function RetirementBreakdownCard() {
   const { formatCurrency } = useCurrency();
   const { retirementBreakdownEnabled } = useUIPreferences();
-  const [breakdownItems, setBreakdownItems] = useState<BreakdownItem[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
+  const [breakdownItems, setBreakdownItems] = useLocalStorage<BreakdownItem[]>("retirementBreakdown", []);
+  
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
@@ -35,7 +25,7 @@ export function RetirementBreakdownCard() {
 
   const saveItems = (items: BreakdownItem[]) => {
     setBreakdownItems(items);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    // Notify RetirementSavingsCard of updates
     window.dispatchEvent(new CustomEvent('retirementBreakdownUpdated', { detail: items }));
   };
 
