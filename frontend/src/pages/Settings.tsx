@@ -18,7 +18,7 @@ interface SettingsProps {
 export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, stockTrackingEnabled, setStockTrackingEnabled } = useUIPreferences();
+  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -44,6 +44,9 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [showCurrentAccountInfoModal, setShowCurrentAccountInfoModal] = useState(false);
   const [showCustomSavingsGoalsInfoModal, setShowCustomSavingsGoalsInfoModal] = useState(false);
   const [showStockFeatureModal, setShowStockFeatureModal] = useState(false);
+  const [showPortfolioEncryptionModal, setShowPortfolioEncryptionModal] = useState(false);
+  const [portfolioPassphrase, setPortfolioPassphrase] = useState(portfolioEncryptionPassphrase || "");
+  const [portfolioPassphraseVisible, setPortfolioPassphraseVisible] = useState(false);
   
   // Recurring wages state
   const [recurringWages, setRecurringWages] = useState<RecurringWage[]>([]);
@@ -194,6 +197,11 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const handleSaveCurrency = () => {
     setCurrency(selectedCurrency);
     setCurrencySuccess(true);
+  };
+
+  const handleSavePortfolioPassphrase = () => {
+    setPortfolioEncryptionPassphrase(portfolioPassphrase);
+    setShowPortfolioEncryptionModal(false);
   };
 
   return (
@@ -400,6 +408,30 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                     }`}
                   />
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Portfolio Encryption
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-charcoal-600 dark:text-charcoal-300 mb-3">
+                  Your retirement portfolio data is encrypted using your user ID. You can optionally add a passphrase for extra security.
+                </p>
+                <button
+                  onClick={() => setShowPortfolioEncryptionModal(true)}
+                  className="px-4 py-2 bg-sage-600 hover:bg-sage-700 dark:bg-sage-500 dark:hover:bg-sage-600 text-white rounded transition-colors text-sm font-medium"
+                >
+                  {portfolioEncryptionPassphrase ? "Update Passphrase" : "Add Passphrase"}
+                </button>
+                {portfolioEncryptionPassphrase && (
+                  <p className="text-xs text-sage-600 dark:text-sage-400 mt-2">
+                    ✓ Passphrase is set
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1108,6 +1140,69 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
               className="w-full"
             >
               Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal 
+        isOpen={showPortfolioEncryptionModal}
+        onClose={() => {
+          setShowPortfolioEncryptionModal(false);
+          setPortfolioPassphrase(portfolioEncryptionPassphrase || "");
+          setPortfolioPassphraseVisible(false);
+        }}
+        title="Portfolio Encryption"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-charcoal-600 dark:text-charcoal-300">
+            Your retirement portfolio data is automatically encrypted using your user ID. Add an optional passphrase for extra security.
+          </p>
+          
+          <div>
+            <label className="block text-sm font-medium text-charcoal-700 dark:text-sand-300 mb-2">
+              Encryption Passphrase (Optional)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type={portfolioPassphraseVisible ? "text" : "password"}
+                value={portfolioPassphrase}
+                onChange={(e) => setPortfolioPassphrase(e.target.value)}
+                placeholder="Leave empty for default encryption"
+                className="flex-1 px-3 py-2 border border-sand-300 dark:border-charcoal-600 rounded bg-white dark:bg-charcoal-800 text-charcoal-900 dark:text-sand-100 text-sm"
+              />
+              <button
+                onClick={() => setPortfolioPassphraseVisible(!portfolioPassphraseVisible)}
+                className="p-2 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors"
+              >
+                {portfolioPassphraseVisible ? (
+                  <EyeOff size={16} className="text-charcoal-600 dark:text-charcoal-400" />
+                ) : (
+                  <Eye size={16} className="text-charcoal-600 dark:text-charcoal-400" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-sage-50 dark:bg-sage-900/20 p-3 rounded">
+            <p className="text-xs text-sage-700 dark:text-sage-300">
+              <strong>Security Note:</strong> Your passphrase is never sent to the server. If you forget it, you'll need to clear your browser's local storage to reset.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={handleSavePortfolioPassphrase}
+              className="flex-1"
+            >
+              Save
+            </Button>
+            <Button
+              onClick={() => setShowPortfolioEncryptionModal(false)}
+              variant="ghost"
+              className="flex-1"
+            >
+              Cancel
             </Button>
           </div>
         </div>

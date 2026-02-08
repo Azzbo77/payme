@@ -14,6 +14,8 @@ interface UIPreferencesContextType {
   setCustomSavingsGoalsEnabled: (enabled: boolean) => void;
   stockTrackingEnabled: boolean;
   setStockTrackingEnabled: (enabled: boolean) => void;
+  portfolioEncryptionPassphrase: string;
+  setPortfolioEncryptionPassphrase: (passphrase: string) => void;
 }
 
 const UIPreferencesContext = createContext<UIPreferencesContextType | undefined>(undefined);
@@ -99,6 +101,19 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     return true;
   });
 
+  const [portfolioEncryptionPassphrase, setPortfolioEncryptionPassphraseState] = useState<string>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const prefs = JSON.parse(stored);
+        return prefs.portfolioEncryptionPassphrase ?? "";
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  });
+
   const setTransfersEnabled = (enabled: boolean) => {
     setTransfersEnabledState(enabled);
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -153,8 +168,15 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, stockTrackingEnabled: enabled }));
   };
 
+  const setPortfolioEncryptionPassphrase = (passphrase: string) => {
+    setPortfolioEncryptionPassphraseState(passphrase);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const prefs = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, portfolioEncryptionPassphrase: passphrase }));
+  };
+
   return (
-    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, stockTrackingEnabled, setStockTrackingEnabled }}>
+    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase }}>
       {children}
     </UIPreferencesContext.Provider>
   );

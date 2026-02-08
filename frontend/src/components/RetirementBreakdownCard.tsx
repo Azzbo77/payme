@@ -4,9 +4,11 @@ import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
-import { useLocalStorage, useToast } from "../hooks";
+import { useToast } from "../hooks";
+import { useEncryptedStorage } from "../hooks/useEncryptedStorage";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
+import { useAuth } from "../context/AuthContext";
 import { getStockPrice, convertUSDPrice } from "../services/stockService";
 
 interface BreakdownItem {
@@ -23,9 +25,15 @@ interface BreakdownItem {
 
 export function RetirementBreakdownCard() {
   const { formatCurrency, currency } = useCurrency();
-  const { retirementBreakdownEnabled, stockTrackingEnabled } = useUIPreferences();
+  const { user } = useAuth();
+  const { retirementBreakdownEnabled, stockTrackingEnabled, portfolioEncryptionPassphrase } = useUIPreferences();
   const { success, error } = useToast();
-  const [breakdownItems, setBreakdownItems] = useLocalStorage<BreakdownItem[]>("retirementBreakdown", []);
+  const [breakdownItems, setBreakdownItems] = useEncryptedStorage<BreakdownItem[]>(
+    "retirementBreakdown",
+    [],
+    user?.id,
+    portfolioEncryptionPassphrase
+  );
   
   const [isAdding, setIsAdding] = useState(false);
   const [addMode, setAddMode] = useState<"custom" | "stock">("custom");
