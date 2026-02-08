@@ -46,8 +46,25 @@ async function fetchStockPriceFromAPI(ticker: string): Promise<number> {
     const response = await fetch(`${BASE_URL}/stocks/price?ticker=${encodeURIComponent(ticker)}`);
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Unknown error" }));
-      throw new Error(error.error || `API error: ${response.status}`);
+      let errorMessage = `API error: ${response.status}`;
+      
+      // Try to parse error response
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If JSON parsing fails, check for common status codes
+        if (response.status === 429) {
+          errorMessage = "Rate limit exceeded. Alpha Vantage API limit reached (5 calls/min). Please try again in a moment.";
+        } else if (response.status === 500) {
+          // Server error - might be API limit or other issue
+          errorMessage = "Server error. This often means the stock API has rate limited. Please try again in 1-2 minutes.";
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
