@@ -17,7 +17,7 @@ use tower_http::cors::{Any, CorsLayer};
 
 use handlers::{
     auth, budget, export, fixed_expenses, health, income, items, monthly_data, months,
-    savings, stats,
+    savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
 
@@ -147,6 +147,8 @@ pub fn create_app(pool: SqlitePool) -> Router {
         )
         .route("/api/export/json", get(export::export_json))
         .route("/api/import/json", post(export::import_json))
+        .route("/api/stocks/price", get(stocks::get_stock_price))
+        .route("/api/stocks/exchange-rate", get(stocks::get_exchange_rate))
         .layer(from_fn(auth_middleware));
 
     let cors = CorsLayer::new()

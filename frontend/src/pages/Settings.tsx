@@ -18,7 +18,7 @@ interface SettingsProps {
 export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled } = useUIPreferences();
+  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, stockTrackingEnabled, setStockTrackingEnabled } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -43,6 +43,7 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [showRecurringWagesInfoModal, setShowRecurringWagesInfoModal] = useState(false);
   const [showCurrentAccountInfoModal, setShowCurrentAccountInfoModal] = useState(false);
   const [showCustomSavingsGoalsInfoModal, setShowCustomSavingsGoalsInfoModal] = useState(false);
+  const [showStockFeatureModal, setShowStockFeatureModal] = useState(false);
   
   // Recurring wages state
   const [recurringWages, setRecurringWages] = useState<RecurringWage[]>([]);
@@ -355,6 +356,47 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       currentAccountEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Stock & Crypto Tracking
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Enable Stock & Crypto Tracking
+                    </label>
+                    <button
+                      onClick={() => setShowStockFeatureModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How to add stocks and crypto"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Add stocks and cryptocurrencies to track alongside other accounts
+                  </p>
+                </div>
+                <button
+                  onClick={() => setStockTrackingEnabled(!stockTrackingEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    stockTrackingEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      stockTrackingEnabled ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -993,6 +1035,76 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           <div className="flex gap-2 pt-4">
             <Button
               onClick={() => setShowCustomSavingsGoalsInfoModal(false)}
+              className="w-full"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showStockFeatureModal} onClose={() => setShowStockFeatureModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Add Stocks & Cryptocurrencies
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What is stock & crypto tracking?</p>
+              <p>Track individual stock holdings and cryptocurrency positions with live price updates. Prices are automatically fetched and converted to your selected currency (GBP, EUR, USD, etc.).</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How to add a stock:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Open the "Retirement Savings Breakdown" card on the dashboard</li>
+                <li>Click the <span className="inline-block">+</span> button to create an entry</li>
+                <li>Select "Stock" mode (toggle the radio button)</li>
+                <li>Enter the stock ticker (e.g., AAPL, MSFT, GOOGL)</li>
+                <li>Enter the quantity of shares you own</li>
+                <li>Click confirm - price is fetched automatically and converted to your currency</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How to add a cryptocurrency:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li>Follow the same steps as stocks</li>
+                <li>Enter the crypto ticker: <span className="font-mono text-xs">BTC</span>, <span className="font-mono text-xs">ETH</span>, <span className="font-mono text-xs">SOL</span>, etc.</li>
+                <li>For FTT (from FTX), use <span className="font-mono text-xs">FTT.IO</span></li>
+                <li>Price is fetched in USD and automatically converted to your currency</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Supported cryptocurrencies:</p>
+              <p className="text-xs">BTC, ETH, XRP, BCH, LTC, EOS, XLM, LINK, DOT, YFI, DOGE, ADA, SOL, MATIC, AVAX, LUNA, ATOM, NEAR, and most major exchanges (fallback to stock lookup)</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Features:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li><span className="font-medium">Live prices:</span> Prices auto-convert to your selected currency</li>
+                <li><span className="font-medium">Refresh:</span> Click the refresh icon to update all stock prices</li>
+                <li><span className="font-medium">Edit/Delete:</span> Modify holdings or remove entries anytime</li>
+                <li><span className="font-medium">Caching:</span> Prices cached for performance (stock: 7 days, forex: 1 day)</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Notes:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs">
+                <li>Prices use Alpha Vantage API (5 calls/min, 500/day free tier)</li>
+                <li>If ticker not found as stock, system tries crypto lookup</li>
+                <li>All prices displayed in your selected currency with conversion</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowStockFeatureModal(false)}
               className="w-full"
             >
               Got it

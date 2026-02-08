@@ -9,3 +9,4 @@ pub mod monthly_data;
 pub mod months;
 pub mod savings;
 pub mod stats;
+pub mod stocks;

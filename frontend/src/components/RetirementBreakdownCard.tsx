@@ -1,36 +1,43 @@
 import { useState } from "react";
-import { Trash2, Edit2, Check, X, Loader } from "lucide-react";
+import { Trash2, Edit2, Check, X, Loader, RefreshCw } from "lucide-react";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
-import { useLocalStorage, useFormValidation, validationRules } from "../hooks";
+import { useLocalStorage, useToast } from "../hooks";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
+import { getStockPrice, convertUSDPrice } from "../services/stockService";
 
 interface BreakdownItem {
   id: string;
   label: string;
   amount: number;
+  type?: "custom" | "stock";
+  ticker?: string;
+  quantity?: number;
+  currentPrice?: number;
+  lastUpdated?: number;
+  currencyCode?: string;
 }
 
 export function RetirementBreakdownCard() {
-  const { formatCurrency } = useCurrency();
-  const { retirementBreakdownEnabled } = useUIPreferences();
+  const { formatCurrency, currency } = useCurrency();
+  const { retirementBreakdownEnabled, stockTrackingEnabled } = useUIPreferences();
+  const { success, error } = useToast();
   const [breakdownItems, setBreakdownItems] = useLocalStorage<BreakdownItem[]>("retirementBreakdown", []);
   
   const [isAdding, setIsAdding] = useState(false);
+  const [addMode, setAddMode] = useState<"custom" | "stock">("custom");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const [ticker, setTicker] = useState("");
+  const [quantity, setQuantity] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [addLoading, setAddLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
-
-  const { fieldErrors, validateField, validateAll, clearAll } = useFormValidation({
-    label: [validationRules.required("Label"), validationRules.minLength("Label", 1)],
-    amount: [validationRules.required("Amount"), validationRules.positive("Amount")],
-  });
+  const [priceLoading, setPriceLoading] = useState<string | null>(null);
 
   const saveItems = (items: BreakdownItem[]) => {
     setBreakdownItems(items);
@@ -38,32 +45,169 @@ export function RetirementBreakdownCard() {
     window.dispatchEvent(new CustomEvent('retirementBreakdownUpdated', { detail: items }));
   };
 
-  const handleAdd = () => {
-    if (!validateAll({ label, amount })) return;
-    setAddLoading(true);
-    try {
-      const generateId = () => Date.now().toString();
-      const newItem: BreakdownItem = {
-        id: generateId(),
-        label,
-        amount: parseFloat(amount),
-      };
-      saveItems([...breakdownItems, newItem]);
-      resetForm();
-    } finally {
-      setAddLoading(false);
+  const handleAdd = async () => {
+    console.log("handleAdd called", { addMode, ticker, quantity, label, amount });
+    
+    if (addMode === "custom") {
+      // Simple validation
+      if (!label.trim() || !amount.trim()) {
+        error("Please fill in all fields");
+        return;
+      }
+      const numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        error("Amount must be a positive number");
+        return;
+      }
+      
+      setAddLoading(true);
+      try {
+        const newItem: BreakdownItem = {
+          id: Date.now().toString(),
+          label,
+          amount: numAmount,
+          type: "custom",
+        };
+        saveItems([...breakdownItems, newItem]);
+        success(`Added: ${label}`);
+        resetForm();
+      } catch (err) {
+        error("Failed to add item");
+      } finally {
+        setAddLoading(false);
+      }
+    } else {
+      // Simple validation
+      if (!ticker.trim() || !quantity.trim()) {
+        error("Please enter ticker and quantity");
+        return;
+      }
+      const numQuantity = parseFloat(quantity);
+      if (isNaN(numQuantity) || numQuantity <= 0) {
+        error("Quantity must be a positive number");
+        return;
+      }
+      
+      setAddLoading(true);
+      try {
+        const upperTicker = ticker.toUpperCase();
+        console.log("Fetching price for:", upperTicker);
+        const usdPrice = await getStockPrice(upperTicker);
+        console.log("Got USD price:", usdPrice);
+        const convertedPrice = await convertUSDPrice(usdPrice, currency.code);
+        console.log("Converted price:", convertedPrice, "to", currency.code);
+        const newItem: BreakdownItem = {
+          id: Date.now().toString(),
+          label: `${upperTicker}`,
+          ticker: upperTicker,
+          quantity: numQuantity,
+          currentPrice: convertedPrice,
+          amount: convertedPrice * numQuantity,
+          type: "stock",
+          lastUpdated: Date.now(),
+          currencyCode: currency.code,
+        };
+        saveItems([...breakdownItems, newItem]);
+        success(`Added ${quantity} shares of ${upperTicker} at ${formatCurrency(convertedPrice)}`);
+        resetForm();
+      } catch (err) {
+        console.error("Error adding stock:", err);
+        error(`Failed to add stock: ${err instanceof Error ? err.message : "Unknown error"}`);
+      } finally {
+        setAddLoading(false);
+      }
     }
   };
 
-  const handleUpdate = (id: string) => {
-    if (!validateAll({ label, amount })) return;
+  const handleRefreshPrices = async () => {
+    const stockItems = breakdownItems.filter((item) => item.type === "stock");
+    if (stockItems.length === 0) return;
+
+    for (const item of stockItems) {
+      if (item.ticker) {
+        setPriceLoading(item.id);
+        try {
+          const usdPrice = await getStockPrice(item.ticker, true);
+          const convertedPrice = await convertUSDPrice(usdPrice, currency.code);
+          const updated = breakdownItems.map((i) =>
+            i.id === item.id
+              ? {
+                  ...i,
+                  currentPrice: convertedPrice,
+                  amount: convertedPrice * (i.quantity || 0),
+                  lastUpdated: Date.now(),
+                  currencyCode: currency.code,
+                }
+              : i
+          );
+          saveItems(updated);
+        } catch (error) {
+          console.error(`Failed to refresh ${item.ticker}:`, error);
+        } finally {
+          setPriceLoading(null);
+        }
+      }
+    }
+  };
+
+  const handleUpdate = async (id: string) => {
+    const item = breakdownItems.find((i) => i.id === id);
+    if (!item) return;
+
+    if (item.type === "stock") {
+      if (!ticker.trim() || !quantity.trim()) {
+        error("Please enter ticker and quantity");
+        return;
+      }
+      const numQuantity = parseFloat(quantity);
+      if (isNaN(numQuantity) || numQuantity <= 0) {
+        error("Quantity must be a positive number");
+        return;
+      }
+    } else {
+      if (!label.trim() || !amount.trim()) {
+        error("Please fill in all fields");
+        return;
+      }
+      const numAmount = parseFloat(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        error("Amount must be a positive number");
+        return;
+      }
+    }
+
     setUpdateLoading(true);
     try {
-      const updated = breakdownItems.map((item) =>
-        item.id === id ? { ...item, label, amount: parseFloat(amount) } : item
-      );
-      saveItems(updated);
+      if (item.type === "stock") {
+        const numQuantity = parseFloat(quantity);
+        const usdPrice = await getStockPrice(ticker.toUpperCase(), true);
+        const convertedPrice = await convertUSDPrice(usdPrice, currency.code);
+        const updated = breakdownItems.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                ticker: ticker.toUpperCase(),
+                quantity: numQuantity,
+                currentPrice: convertedPrice,
+                amount: convertedPrice * numQuantity,
+                lastUpdated: Date.now(),
+                currencyCode: currency.code,
+              }
+            : i
+        );
+        saveItems(updated);
+        success(`Updated ${quantity} shares of ${ticker.toUpperCase()}`);
+      } else {
+        const numAmount = parseFloat(amount);
+        const updated = breakdownItems.map((i) =>
+          i.id === id ? { ...i, label, amount: numAmount } : i
+        );
+        saveItems(updated);
+        success(`Updated: ${label}`);
+      }
       resetForm();
+    } catch (err) {
+      error(`Failed to update: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setUpdateLoading(false);
     }
@@ -81,16 +225,29 @@ export function RetirementBreakdownCard() {
 
   const startEdit = (item: BreakdownItem) => {
     setEditingId(item.id);
-    setLabel(item.label);
-    setAmount(item.amount.toString());
+    if (item.type === "stock") {
+      setAddMode("stock");
+      setTicker(item.ticker || "");
+      setQuantity(item.quantity?.toString() || "");
+      setLabel("");
+      setAmount("");
+    } else {
+      setAddMode("custom");
+      setLabel(item.label);
+      setAmount(item.amount.toString());
+      setTicker("");
+      setQuantity("");
+    }
   };
 
   const resetForm = () => {
     setEditingId(null);
     setLabel("");
     setAmount("");
+    setTicker("");
+    setQuantity("");
     setIsAdding(false);
-    clearAll();
+    setAddMode("custom");
   };
 
   if (!retirementBreakdownEnabled && breakdownItems.length === 0) {
@@ -106,43 +263,95 @@ export function RetirementBreakdownCard() {
             Retirement Savings Breakdown
           </h3>
         </div>
-        {!isAdding && retirementBreakdownEnabled && (
-          <button
-            onClick={() => {
-              setIsAdding(true);
-            }}
-            className="p-2 md:p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
-          >
-            <span className="text-lg">+</span>
-          </button>
-        )}
+        <div className="flex gap-2">
+          {breakdownItems.some((item) => item.type === "stock") && (
+            <button
+              onClick={handleRefreshPrices}
+              disabled={priceLoading !== null}
+              className="p-2 md:p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh stock prices"
+            >
+              <RefreshCw size={14} className={priceLoading ? "animate-spin" : ""} />
+            </button>
+          )}
+          {!isAdding && retirementBreakdownEnabled && (
+            <button
+              onClick={() => {
+                setIsAdding(true);
+              }}
+              className="p-2 md:p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 active:bg-sand-300 dark:active:bg-charcoal-700 transition-colors rounded touch-manipulation"
+            >
+              <span className="text-lg">+</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {isAdding && (
         <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800">
+          <div className="mb-3 flex gap-2">
+            <button
+              onClick={() => setAddMode("custom")}
+              className={`px-3 py-1 rounded text-sm transition-colors ${
+                addMode === "custom"
+                  ? "bg-sage-600 text-white dark:bg-sage-500"
+                  : "bg-sand-200 dark:bg-charcoal-700 text-charcoal-700 dark:text-sand-200"
+              }`}
+            >
+              Custom
+            </button>
+            {stockTrackingEnabled && (
+              <button
+                onClick={() => setAddMode("stock")}
+                className={`px-3 py-1 rounded text-sm transition-colors ${
+                  addMode === "stock"
+                    ? "bg-sage-600 text-white dark:bg-sage-500"
+                    : "bg-sand-200 dark:bg-charcoal-700 text-charcoal-700 dark:text-sand-200"
+                }`}
+              >
+                Stock
+              </button>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Input
-              placeholder="Account/Source"
-              value={label}
-              onChange={(e) => {
-                setLabel(e.target.value);
-                validateField("label", e.target.value);
-              }}
-              error={fieldErrors.label}
-            />
-            <Input
-              type="number"
-              placeholder="Amount"
-              value={amount}
-              onChange={(e) => {
-                setAmount(e.target.value);
-                validateField("amount", e.target.value);
-              }}
-              error={fieldErrors.amount}
-            />
+            {addMode === "custom" ? (
+              <>
+                <Input
+                  placeholder="Account/Source"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </>
+            ) : (
+              <>
+                <Input
+                  placeholder="Ticker (e.g., AAPL, MSFT)"
+                  value={ticker}
+                  onChange={(e) => setTicker(e.target.value.toUpperCase())}
+                />
+                <Input
+                  type="number"
+                  placeholder="Quantity"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+              </>
+            )}
           </div>
           <div className="flex gap-2 mt-3">
-            <Button size="sm" onClick={handleAdd} isLoading={addLoading} disabled={!!fieldErrors.label || !!fieldErrors.amount}>
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              isLoading={addLoading}
+              disabled={addLoading}
+            >
               <Check size={16} className="mr-1" />
               Add
             </Button>
@@ -162,45 +371,74 @@ export function RetirementBreakdownCard() {
                 Account/Source
               </th>
               <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
-                Amount
+                Quantity
+              </th>
+              <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                Price/Amount
+              </th>
+              <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                Total
               </th>
               {retirementBreakdownEnabled && <th className="w-16 md:w-20"></th>}
             </tr>
           </thead>
           <tbody>
             {breakdownItems.map((item) => {
+              const isStock = item.type === "stock";
+              const isEditing = editingId === item.id;
+
               return (
                 <tr
                   key={item.id}
                   className="border-b border-sand-200 dark:border-charcoal-800 hover:bg-sand-100 dark:hover:bg-charcoal-900/50 active:bg-sand-200 dark:active:bg-charcoal-900 transition-colors"
                 >
-                  {editingId === item.id ? (
+                  {isEditing ? (
                     <>
-                      <td className="py-2">
-                        <Input
-                          placeholder="Label"
-                          value={label}
-                          onChange={(e) => {
-                            setLabel(e.target.value);
-                            validateField("label", e.target.value);
-                          }}
-                          error={fieldErrors.label}
-                          className="text-xs"
-                        />
-                      </td>
-                      <td className="py-2">
-                        <Input
-                          type="number"
-                          placeholder="Amount"
-                          value={amount}
-                          onChange={(e) => {
-                            setAmount(e.target.value);
-                            validateField("amount", e.target.value);
-                          }}
-                          error={fieldErrors.amount}
-                          className="text-xs text-right"
-                        />
-                      </td>
+                      {isStock ? (
+                        <>
+                          <td className="py-2">
+                            <Input
+                              placeholder="Ticker"
+                              value={ticker}
+                              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+                              className="text-xs"
+                            />
+                          </td>
+                          <td className="py-2">
+                            <Input
+                              type="number"
+                              placeholder="Quantity"
+                              value={quantity}
+                              onChange={(e) => setQuantity(e.target.value)}
+                              className="text-xs text-right"
+                            />
+                          </td>
+                          <td className="py-2 px-1 text-right font-medium text-xs md:text-sm text-charcoal-600 dark:text-sand-300">
+                            {item.currentPrice ? `$${item.currentPrice.toFixed(2)} USD` : "—"}
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="py-2">
+                            <Input
+                              placeholder="Label"
+                              value={label}
+                              onChange={(e) => setLabel(e.target.value)}
+                              className="text-xs"
+                            />
+                          </td>
+                          <td colSpan={2}></td>
+                          <td className="py-2">
+                            <Input
+                              type="number"
+                              placeholder="Amount"
+                              value={amount}
+                              onChange={(e) => setAmount(e.target.value)}
+                              className="text-xs text-right"
+                            />
+                          </td>
+                        </>
+                      )}
                       <td className="py-2">
                         <div className="flex gap-0.5 md:gap-1 justify-end">
                           <button
@@ -224,9 +462,20 @@ export function RetirementBreakdownCard() {
                     <>
                       <td className="py-2 px-1 text-charcoal-800 dark:text-sand-200 text-xs md:text-sm font-medium">
                         {item.label}
+                        {isStock && item.lastUpdated && (
+                          <div className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                            Updated: {new Date(item.lastUpdated).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-charcoal-600 dark:text-sand-300">
+                        {isStock ? item.quantity : "—"}
+                      </td>
+                      <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-charcoal-600 dark:text-sand-300">
+                        {isStock ? formatCurrency(item.currentPrice || 0) : "—"}
                       </td>
                       <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-sage-600 dark:text-sage-400">
-                        {formatCurrency(item.amount)}
+                        {isStock ? formatCurrency(item.amount || 0) : formatCurrency(item.amount)}
                       </td>
                       {retirementBreakdownEnabled && (
                         <td className="py-2 px-1">

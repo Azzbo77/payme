@@ -22,6 +22,20 @@ I grew tired of my spreadsheet, and did not care for any of the third party serv
 
 Generally, if you don't like it, fork it and make it your own or consider contributing to the project (read [CONTRIBUTING.md](CONTRIBUTING.md) for more information).
 
+## Features
+
+- Personal finance tracking and budgeting
+- Monthly financial summaries and stats
+- Track liquid savings and retirement accounts
+- Stock portfolio tracking - Add stocks and ETFs to your retirement savings with live price updates
+- Import/Export financial data
+- Private, self-hosted, no third-party tracking
+- Dark mode support
+
+### Stock & Crypto Portfolio Feature
+
+Track your investment portfolio alongside your savings accounts. Add any stock or cryptocurrency ticker to monitor its current price and total portfolio value. Prices are fetched from Alpha Vantage API, converted to your selected currency, and cached locally for efficiency. See the app Settings → "Stock & Crypto Tracking" for setup details.
+
 ## Requirements
 
 - Rust 1.75+
@@ -44,7 +58,10 @@ See `.env.example` for all available variables.
 DATABASE_URL=sqlite:payme.db?mode=rwc
 JWT_SECRET=some-random-string
 PORT=3001
+ALPHA_VANTAGE_API_KEY=your_key_here
 ``` 
+
+**Stock & Crypto Tracking**: To enable stock and cryptocurrency price tracking, sign up for a free Alpha Vantage API key at https://www.alphavantage.co/ and set `ALPHA_VANTAGE_API_KEY`. The API key is only used on the backend, never exposed to the frontend.
 
 
 ## Running both services

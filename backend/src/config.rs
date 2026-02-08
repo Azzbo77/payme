@@ -3,6 +3,7 @@ use std::env;
 pub struct Config {
     pub database_url: String,
     pub port: u16,
+    pub alpha_vantage_api_key: Option<String>,
 }
 
 impl Config {
@@ -15,6 +16,7 @@ impl Config {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3001),
+            alpha_vantage_api_key: env::var("ALPHA_VANTAGE_API_KEY").ok(),
         }
     }
 }

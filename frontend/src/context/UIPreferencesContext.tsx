@@ -12,6 +12,8 @@ interface UIPreferencesContextType {
   setCurrentAccountEnabled: (enabled: boolean) => void;
   customSavingsGoalsEnabled: boolean;
   setCustomSavingsGoalsEnabled: (enabled: boolean) => void;
+  stockTrackingEnabled: boolean;
+  setStockTrackingEnabled: (enabled: boolean) => void;
 }
 
 const UIPreferencesContext = createContext<UIPreferencesContextType | undefined>(undefined);
@@ -84,6 +86,19 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     return true;
   });
 
+  const [stockTrackingEnabled, setStockTrackingEnabledState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const prefs = JSON.parse(stored);
+        return prefs.stockTrackingEnabled ?? true;
+      } catch {
+        return true;
+      }
+    }
+    return true;
+  });
+
   const setTransfersEnabled = (enabled: boolean) => {
     setTransfersEnabledState(enabled);
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -131,8 +146,15 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const setStockTrackingEnabled = (enabled: boolean) => {
+    setStockTrackingEnabledState(enabled);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const prefs = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, stockTrackingEnabled: enabled }));
+  };
+
   return (
-    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled }}>
+    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, stockTrackingEnabled, setStockTrackingEnabled }}>
       {children}
     </UIPreferencesContext.Provider>
   );
