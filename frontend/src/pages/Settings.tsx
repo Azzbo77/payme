@@ -45,6 +45,7 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [showCustomSavingsGoalsInfoModal, setShowCustomSavingsGoalsInfoModal] = useState(false);
   const [showStockFeatureModal, setShowStockFeatureModal] = useState(false);
   const [showPortfolioEncryptionModal, setShowPortfolioEncryptionModal] = useState(false);
+  const [showEncryptionInfoModal, setShowEncryptionInfoModal] = useState(false);
   const [portfolioPassphrase, setPortfolioPassphrase] = useState(portfolioEncryptionPassphrase || "");
   const [portfolioPassphraseVisible, setPortfolioPassphraseVisible] = useState(false);
   
@@ -413,9 +414,18 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           </div>
 
           <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
-              Portfolio Encryption
-            </h2>
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-base sm:text-lg font-medium text-charcoal-800 dark:text-sand-100">
+                Portfolio Encryption
+              </h2>
+              <button
+                onClick={() => setShowEncryptionInfoModal(true)}
+                className="p-1 text-charcoal-500 dark:text-charcoal-400 hover:text-charcoal-700 dark:hover:text-sand-200 transition-colors"
+                title="Learn about encryption"
+              >
+                <Info size={18} />
+              </button>
+            </div>
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-charcoal-600 dark:text-charcoal-300 mb-3">
@@ -1137,6 +1147,60 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           <div className="flex gap-2 pt-4">
             <Button
               onClick={() => setShowStockFeatureModal(false)}
+              className="w-full"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showEncryptionInfoModal} onClose={() => setShowEncryptionInfoModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How Portfolio Encryption Works
+          </h2>
+
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What's being encrypted?</p>
+              <p>Your retirement portfolio breakdown data (stocks, cryptocurrencies, and custom items) is encrypted and stored only in your browser. This data never leaves your device.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How is it protected?</p>
+              <p>Your portfolio uses <span className="font-mono text-xs bg-charcoal-700 dark:bg-charcoal-800 px-1 py-0.5 rounded">AES-256-GCM</span> encryption. The encryption key is derived from a combination of:</p>
+              <ul className="list-disc list-inside space-y-1 text-xs mt-2">
+                <li>Your user ID (from your account)</li>
+                <li>An app secret (built into the application)</li>
+                <li>Your optional passphrase (if you set one)</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Do I need a passphrase?</p>
+              <p>No, but it's recommended. Without a passphrase: your portfolio is protected by your user ID. With a passphrase: you add an extra layer of security. Only you know your passphrase - it's never sent to our servers.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What if I forget my passphrase?</p>
+              <p className="text-amber-600 dark:text-amber-400 font-medium">⚠️ Your encrypted portfolio data cannot be recovered. If you forget your passphrase, the existing data will be inaccessible. Choose a passphrase you can remember.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Is my password at risk?</p>
+              <p>No. Encryption and decryption happens entirely in your browser using Web Crypto API. Your passphrase is never sent to the server, and the server has no ability to decrypt your data.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What happens when I change my passphrase?</p>
+              <p>Your existing portfolio data is re-encrypted with the new passphrase. When the page refreshes after updating, it will decrypt and re-encrypt automatically using the new key.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowEncryptionInfoModal(false)}
               className="w-full"
             >
               Got it
