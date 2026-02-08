@@ -1,5 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { encrypt, decrypt, isEncryptionSupported } from "../utils/encryption";
+import {
+  setInCache,
+  getFromCache,
+} from "../utils/lruCache";
 
 interface EncryptedStorageItem {
   ciphertext: string;
@@ -7,6 +11,13 @@ interface EncryptedStorageItem {
   salt: string;
   version: number; // For future compatibility
 }
+
+// LRU cache configuration for encrypted storage
+const LRU_CONFIG = {
+  maxItems: 100, // Allow up to 100 items (portfolio items)
+  maxSizeBytes: 10 * 1024 * 1024, // 10MB max storage
+  namespace: "encrypted_storage",
+};
 
 /**
  * Hook for encrypted localStorage with optional passphrase support
@@ -22,29 +33,30 @@ export function useEncryptedStorage<T>(
     try {
       // If no crypto support or no user ID, fall back to unencrypted
       if (!isEncryptionSupported() || !userId) {
-        const item = localStorage.getItem(key);
-        if (item) {
-          return JSON.parse(item);
+        const item = getFromCache(key, LRU_CONFIG);
+        if (item !== null) {
+          return typeof item === "string" ? JSON.parse(item) : (item as T);
         }
         return initialValue;
       }
 
       // Try to get encrypted value
-      const item = localStorage.getItem(key);
-      if (!item) {
+      const item = getFromCache(key, LRU_CONFIG);
+      if (item === null) {
         return initialValue;
       }
 
       try {
-        const parsed = JSON.parse(item) as EncryptedStorageItem;
+        const parsed =
+          typeof item === "string" ? JSON.parse(item) : item;
         // Check if it looks like an encrypted item
-        if (parsed.ciphertext && parsed.iv && parsed.version) {
+        if (parsed?.ciphertext && parsed?.iv && parsed?.version) {
           // Return marker that we need to decrypt
           return { __encrypted: true, __data: parsed } as any;
         }
       } catch {
         // Not encrypted, assume it's plain JSON
-        return JSON.parse(item);
+        return typeof item === "string" ? JSON.parse(item) : (item as T);
       }
 
       return initialValue;
@@ -91,7 +103,7 @@ export function useEncryptedStorage<T>(
 
         // If no crypto support or no user ID, store unencrypted
         if (!isEncryptionSupported() || !userId) {
-          localStorage.setItem(key, JSON.stringify(valueToStore));
+          setInCache(key, valueToStore, LRU_CONFIG);
           setStoredValue(valueToStore);
           setDecryptedValue(valueToStore);
           return;
@@ -104,14 +116,14 @@ export function useEncryptedStorage<T>(
               ...encrypted,
               version: 1,
             };
-            localStorage.setItem(key, JSON.stringify(item));
+            setInCache(key, item, LRU_CONFIG);
             setStoredValue(valueToStore);
             setDecryptedValue(valueToStore);
           })
           .catch((error) => {
             console.error("Failed to encrypt and store value:", error);
             // Fall back to unencrypted
-            localStorage.setItem(key, JSON.stringify(valueToStore));
+            setInCache(key, valueToStore, LRU_CONFIG);
             setStoredValue(valueToStore);
             setDecryptedValue(valueToStore);
           });

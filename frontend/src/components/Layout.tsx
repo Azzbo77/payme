@@ -21,6 +21,20 @@ export function Layout({ children, onSettingsClick }: LayoutProps) {
 
   const handleExport = async () => {
     const data = await api.exportJson();
+    
+    // Include portfolio data from localStorage if available
+    try {
+      const portfolioData = localStorage.getItem("retirementBreakdown");
+      if (portfolioData) {
+        const portfolio = JSON.parse(portfolioData);
+        // Portfolio will be encrypted data or plain data depending on setup
+        data.portfolio = Array.isArray(portfolio) ? portfolio : portfolio;
+      }
+    } catch (err) {
+      console.warn("Could not include portfolio in export:", err);
+      // Continue without portfolio
+    }
+    
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -58,7 +72,22 @@ export function Layout({ children, onSettingsClick }: LayoutProps) {
     if (!pendingImport) return;
     setImporting(true);
     try {
+      // Extract portfolio before importing database
+      const portfolio = pendingImport.portfolio;
+      
+      // Import database data
       await api.importJson(pendingImport);
+      
+      // Restore portfolio to localStorage if it exists
+      if (portfolio && portfolio.length > 0) {
+        try {
+          localStorage.setItem("retirementBreakdown", JSON.stringify(portfolio));
+        } catch (err) {
+          console.warn("Could not restore portfolio during import:", err);
+          // Portfolio restore failed, but database imported successfully
+        }
+      }
+      
       window.location.reload();
     } catch {
       // Import failed, ignore
@@ -150,6 +179,9 @@ export function Layout({ children, onSettingsClick }: LayoutProps) {
               <div>{pendingImport.categories.length} categories</div>
               <div>{pendingImport.fixed_expenses.length} fixed expenses</div>
               <div>{pendingImport.months.length} months</div>
+              {pendingImport.portfolio && pendingImport.portfolio.length > 0 && (
+                <div>{pendingImport.portfolio.length} portfolio items</div>
+              )}
             </div>
           )}
           <div className="flex flex-col sm:flex-row gap-2">

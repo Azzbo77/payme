@@ -293,10 +293,27 @@ export const api = {
   },
 };
 
+export interface BreakdownItem {
+  id: string;
+  label: string;
+  amount: number;
+  type?: "custom" | "stock";
+  ticker?: string;
+  quantity?: number;
+  currentPrice?: number;
+  lastUpdated?: number;
+  currencyCode?: string;
+  ciphertext?: string;
+  iv?: string;
+  salt?: string;
+  version?: number;
+}
+
 export interface UserExport {
   version: number;
   savings?: number;
   retirement_savings?: number;
+  portfolio?: BreakdownItem[];
   fixed_expenses: { label: string; amount: number }[];
   categories: { label: string; default_amount: number }[];
   months: {
