@@ -24,6 +24,9 @@ pub enum PaymeError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Rate limit exceeded")]
+    RateLimited,
 }
 
 impl IntoResponse for PaymeError {
@@ -35,6 +38,7 @@ impl IntoResponse for PaymeError {
             PaymeError::Unauthorized => StatusCode::UNAUTHORIZED,
             PaymeError::BadRequest(_) => StatusCode::BAD_REQUEST,
             PaymeError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            PaymeError::RateLimited => StatusCode::TOO_MANY_REQUESTS,
         };
         tracing::error!("{self}");
         status.into_response()

@@ -6,11 +6,12 @@ pub mod middleware;
 pub mod models;
 pub mod openapi;
 pub mod pdf;
+pub mod ratelimit;
 
 use axum::{
     middleware::from_fn,
     routing::{delete, get, post, put},
-    Router,
+    Extension, Router,
 };
 use sqlx::SqlitePool;
 use tower_http::cors::{Any, CorsLayer};
@@ -20,6 +21,8 @@ use handlers::{
     savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
+use ratelimit::{RateLimitManager, STOCK_API_RATE_LIMIT};
+use std::sync::Arc;
 
 /// Create the application router with all routes
 pub fn create_app(pool: SqlitePool) -> Router {
@@ -27,6 +30,8 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .route("/health", get(health::health_check))
         .route("/api/auth/register", post(auth::register))
         .route("/api/auth/login", post(auth::login));
+
+    let rate_limiter = Arc::new(RateLimitManager::new(STOCK_API_RATE_LIMIT));
 
     let protected_routes = Router::new()
         .route("/api/auth/logout", post(auth::logout))
@@ -149,6 +154,7 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .route("/api/import/json", post(export::import_json))
         .route("/api/stocks/price", get(stocks::get_stock_price))
         .route("/api/stocks/exchange-rate", get(stocks::get_exchange_rate))
+        .layer(Extension(rate_limiter))
         .layer(from_fn(auth_middleware));
 
     let cors = CorsLayer::new()

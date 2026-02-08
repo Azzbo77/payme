@@ -58,10 +58,10 @@ See `.env.example` for all available variables.
 DATABASE_URL=sqlite:payme.db?mode=rwc
 JWT_SECRET=some-random-string
 PORT=3001
-ALPHA_VANTAGE_API_KEY=your_key_here
+STOCK_API_KEY=your_key_here
 ``` 
 
-**Stock & Crypto Tracking**: To enable stock and cryptocurrency price tracking, sign up for a free Alpha Vantage API key at https://www.alphavantage.co/ and set `ALPHA_VANTAGE_API_KEY`. The API key is only used on the backend, never exposed to the frontend.
+**Stock & Crypto Tracking**: To enable stock and cryptocurrency price tracking, sign up for a free Alpha Vantage API key at https://www.alphavantage.co/ and set `STOCK_API_KEY`. The API key is only used on the backend, never exposed to the frontend.
 
 
 ## Running both services

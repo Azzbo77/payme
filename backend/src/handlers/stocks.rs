@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::error::PaymeError;
+use crate::middleware::auth::Claims;
+use crate::ratelimit::RateLimitManager;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StockPriceRequest {
@@ -61,10 +63,18 @@ fn validate_ticker(ticker: &str) -> Result<String, PaymeError> {
 }
 
 pub async fn get_stock_price(
+    Extension(claims): Extension<Claims>,
+    Extension(rate_limiter): Extension<Arc<RateLimitManager>>,
     Query(req): Query<StockPriceRequest>,
 ) -> Result<Json<StockPriceResponse>, PaymeError> {
+    // Check rate limit
+    rate_limiter
+        .check_limit(claims.sub)
+        .await
+        .map_err(|_| PaymeError::RateLimited)?;
+
     let ticker = validate_ticker(&req.ticker)?;
-    let api_key = std::env::var("ALPHA_VANTAGE_API_KEY")
+    let api_key = std::env::var("STOCK_API_KEY")
         .map_err(|_| PaymeError::Internal("Stock price API not configured".to_string()))?;
     
     let price = fetch_stock_price(&ticker, &api_key).await?;
@@ -76,11 +86,19 @@ pub async fn get_stock_price(
 }
 
 pub async fn get_exchange_rate(
+    Extension(claims): Extension<Claims>,
+    Extension(rate_limiter): Extension<Arc<RateLimitManager>>,
     Query(req): Query<ExchangeRateRequest>,
 ) -> Result<Json<ExchangeRateResponse>, PaymeError> {
+    // Check rate limit
+    rate_limiter
+        .check_limit(claims.sub)
+        .await
+        .map_err(|_| PaymeError::RateLimited)?;
+
     let from = validate_ticker(&req.from)?;
     let to = validate_ticker(&req.to)?;
-    let api_key = std::env::var("ALPHA_VANTAGE_API_KEY")
+    let api_key = std::env::var("STOCK_API_KEY")
         .map_err(|_| PaymeError::Internal("Exchange rate API not configured".to_string()))?;
     
     let rate = fetch_exchange_rate(&from, &to, &api_key).await?;
