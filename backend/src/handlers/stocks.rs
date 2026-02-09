@@ -74,10 +74,15 @@ pub async fn get_stock_price(
         .map_err(|_| PaymeError::RateLimited)?;
 
     let ticker = validate_ticker(&req.ticker)?;
-    let api_key = std::env::var("STOCK_API_KEY")
-        .map_err(|_| PaymeError::Internal("Stock price API not configured".to_string()))?;
+    let finnhub_key = std::env::var("FINNHUB_API_KEY").ok();
+    let alphavantage_key = std::env::var("ALPHAVANTAGE_API_KEY").ok();
     
-    let price = fetch_stock_price(&ticker, &api_key).await?;
+    let price = fetch_stock_price(
+        &ticker,
+        finnhub_key.as_deref(),
+        alphavantage_key.as_deref(),
+    )
+    .await?;
     
     Ok(Json(StockPriceResponse {
         ticker,
@@ -98,7 +103,7 @@ pub async fn get_exchange_rate(
 
     let from = validate_ticker(&req.from)?;
     let to = validate_ticker(&req.to)?;
-    let api_key = std::env::var("STOCK_API_KEY")
+    let api_key = std::env::var("ALPHAVANTAGE_API_KEY")
         .map_err(|_| PaymeError::Internal("Exchange rate API not configured".to_string()))?;
     
     let rate = fetch_exchange_rate(&from, &to, &api_key).await?;
@@ -110,23 +115,89 @@ pub async fn get_exchange_rate(
     }))
 }
 
-async fn fetch_stock_price(ticker: &str, api_key: &str) -> Result<f64, PaymeError> {
+async fn fetch_stock_price(
+    ticker: &str,
+    finnhub_key: Option<&str>,
+    alphavantage_key: Option<&str>,
+) -> Result<f64, PaymeError> {
     let client = reqwest::Client::new();
-    let base_url = "https://www.alphavantage.co/query";
     
-    // Try crypto first if it's a known crypto ticker
-    if is_crypto(ticker) {
-        match fetch_crypto_price(&client, ticker, api_key, base_url).await {
-            Ok(price) => return Ok(price),
+    // Try Finnhub first (better free tier: 60 calls/minute vs Alpha Vantage 25/day)
+    if let Some(key) = finnhub_key {
+        match fetch_finnhub_price(&client, ticker, key).await {
+            Ok(price) => {
+                tracing::debug!("Successfully fetched {} price from Finnhub: {}", ticker, price);
+                return Ok(price);
+            }
             Err(e) => {
-                tracing::warn!("Crypto lookup failed for {}: {}, attempting stock lookup", ticker, e);
-                // Fall through to stock lookup
+                tracing::warn!("Finnhub lookup failed for {}: {}, attempting Alpha Vantage", ticker, e);
+                // Fall through to Alpha Vantage as fallback
             }
         }
     }
     
-    // Try stock lookup
-    fetch_stock_quote(&client, ticker, api_key, base_url).await
+    // Fallback to Alpha Vantage
+    if let Some(key) = alphavantage_key {
+        let base_url = "https://www.alphavantage.co/query";
+        
+        // Try crypto first if it's a known crypto ticker
+        if is_crypto(ticker) {
+            match fetch_crypto_price(&client, ticker, key, base_url).await {
+                Ok(price) => return Ok(price),
+                Err(e) => {
+                    tracing::warn!("Crypto lookup failed for {}: {}, attempting stock lookup", ticker, e);
+                    // Fall through to stock lookup
+                }
+            }
+        }
+        
+        // Try Alpha Vantage stock lookup
+        return fetch_stock_quote(&client, ticker, key, base_url).await;
+    }
+    
+    Err(PaymeError::Internal(
+        "No API keys configured for stock price lookup".to_string(),
+    ))
+}
+
+async fn fetch_finnhub_price(
+    client: &reqwest::Client,
+    ticker: &str,
+    api_key: &str,
+) -> Result<f64, PaymeError> {
+    let response = client
+        .get("https://finnhub.io/api/v1/quote")
+        .query(&[
+            ("symbol", ticker),
+            ("token", api_key),
+        ])
+        .send()
+        .await
+        .map_err(|e| PaymeError::Internal(format!("Request failed: {}", e)))?;
+    
+    let status = response.status();
+    if !status.is_success() {
+        return Err(PaymeError::Internal(format!("API error: {}", status)));
+    }
+    
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| PaymeError::Internal(format!("Invalid JSON response: {}", e)))?;
+    
+    tracing::debug!("Finnhub response for {}: {}", ticker, data);
+    
+    // Finnhub returns { c: current_price, ... }
+    let price = data
+        .get("c")
+        .and_then(|v| v.as_f64())
+        .ok_or_else(|| PaymeError::BadRequest("Could not parse price from Finnhub response".to_string()))?;
+    
+    if price <= 0.0 {
+        return Err(PaymeError::BadRequest("Invalid price value from Finnhub".to_string()));
+    }
+    
+    Ok(price)
 }
 
 async fn fetch_crypto_price(
@@ -157,12 +228,15 @@ async fn fetch_crypto_price(
         .await
         .map_err(|e| PaymeError::Internal(format!("Invalid JSON response: {}", e)))?;
     
+    tracing::debug!("Alpha Vantage crypto response for {}: {}", ticker, data);
+    
     // Check for API errors
     if let Some(error) = data.get("Error Message") {
         return Err(PaymeError::BadRequest(format!("Invalid ticker: {}", error)));
     }
     
     if let Some(info) = data.get("Information") {
+        tracing::warn!("Alpha Vantage Information message for {}: {}", ticker, info);
         return Err(PaymeError::Internal(
             "API call frequency limit reached. Please try again later.".to_string(),
         ));
@@ -215,12 +289,15 @@ async fn fetch_stock_quote(
         .await
         .map_err(|e| PaymeError::Internal(format!("Invalid JSON response: {}", e)))?;
     
+    tracing::debug!("Alpha Vantage response for {}: {}", ticker, data);
+    
     // Check for API errors
     if let Some(error) = data.get("Error Message") {
         return Err(PaymeError::BadRequest(format!("Invalid ticker: {}", error)));
     }
     
     if let Some(info) = data.get("Information") {
+        tracing::warn!("Alpha Vantage Information message: {}", info);
         return Err(PaymeError::Internal(
             "API call frequency limit reached. Please try again later.".to_string(),
         ));

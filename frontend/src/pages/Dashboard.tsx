@@ -89,7 +89,6 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
             totalFixed={summary.total_fixed}
             totalSpent={summary.total_spent}
             remaining={summary.remaining}
-            currentAccount={currentAccount?.balance}
             extraCard={
               <RetirementSavingsCard
                 refreshTrigger={refreshTrigger} 

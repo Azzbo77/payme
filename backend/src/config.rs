@@ -3,7 +3,8 @@ use std::env;
 pub struct Config {
     pub database_url: String,
     pub port: u16,
-    pub stock_api_key: Option<String>,
+    pub finnhub_api_key: Option<String>,
+    pub alphavantage_api_key: Option<String>,
 }
 
 impl Config {
@@ -16,7 +17,8 @@ impl Config {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3001),
-            stock_api_key: env::var("STOCK_API_KEY").ok(),
+            finnhub_api_key: env::var("FINNHUB_API_KEY").ok(),
+            alphavantage_api_key: env::var("ALPHAVANTAGE_API_KEY").ok(),
         }
     }
 }
