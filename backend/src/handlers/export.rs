@@ -12,15 +12,31 @@ pub struct UserExport {
     pub version: u32,
     pub savings: Option<f64>,
     pub retirement_savings: Option<f64>,
+    pub preferences: Option<PreferencesExport>,
     pub fixed_expenses: Vec<FixedExpenseExport>,
     pub categories: Vec<CategoryExport>,
+    pub recurring_wages: Vec<RecurringWageExport>,
     pub months: Vec<MonthExport>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct PreferencesExport {
+    pub recurring_wages_enabled: bool,
+    pub current_account_enabled: bool,
+    pub custom_savings_goals_enabled: bool,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct FixedExpenseExport {
     pub label: String,
     pub amount: f64,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RecurringWageExport {
+    pub label: String,
+    pub amount: f64,
+    pub effective_from: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -34,9 +50,18 @@ pub struct MonthExport {
     pub year: i32,
     pub month: i32,
     pub is_closed: bool,
+    pub current_account_balance: Option<f64>,
+    pub monthly_savings_amount: Option<f64>,
     pub income_entries: Vec<IncomeExport>,
     pub budgets: Vec<BudgetExport>,
     pub items: Vec<ItemExport>,
+    pub monthly_fixed_expenses: Vec<MonthlyFixedExpenseExport>,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct MonthlyFixedExpenseExport {
+    pub label: String,
+    pub recorded_on: String,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -88,11 +113,33 @@ pub async fn export_json(
             .await
             .unwrap_or(0.0);
 
+    // Get user preferences
+    let preferences: (i32, i32, i32) = sqlx::query_as(
+        "SELECT recurring_wages_enabled, current_account_enabled, custom_savings_goals_enabled FROM users WHERE id = ?"
+    )
+    .bind(claims.sub)
+    .fetch_one(&pool)
+    .await
+    .unwrap_or((1, 1, 1));
+
+    let prefs = PreferencesExport {
+        recurring_wages_enabled: preferences.0 != 0,
+        current_account_enabled: preferences.1 != 0,
+        custom_savings_goals_enabled: preferences.2 != 0,
+    };
+
     let fixed_expenses: Vec<FixedExpense> =
         sqlx::query_as("SELECT id, user_id, label, amount FROM fixed_expenses WHERE user_id = ?")
             .bind(claims.sub)
             .fetch_all(&pool)
             .await?;
+
+    let recurring_wages: Vec<(String, f64, String)> = sqlx::query_as(
+        "SELECT label, amount, effective_from FROM recurring_wages WHERE user_id = ? ORDER BY effective_from DESC",
+    )
+    .bind(claims.sub)
+    .fetch_all(&pool)
+    .await?;
 
     let categories: Vec<BudgetCategory> = sqlx::query_as(
         "SELECT id, user_id, label, default_amount FROM budget_categories WHERE user_id = ?",
@@ -137,6 +184,30 @@ pub async fn export_json(
         .fetch_all(&pool)
         .await?;
 
+        // Get current account balance for this month
+        let current_account_balance: Option<f64> = sqlx::query_scalar(
+            "SELECT balance FROM monthly_current_account WHERE month_id = ?",
+        )
+        .bind(m.id)
+        .fetch_optional(&pool)
+        .await?;
+
+        // Get monthly savings amount
+        let monthly_savings: Option<f64> = sqlx::query_scalar(
+            "SELECT savings FROM monthly_savings WHERE month_id = ?",
+        )
+        .bind(m.id)
+        .fetch_optional(&pool)
+        .await?;
+
+        // Get recorded fixed expenses for this month
+        let monthly_fixed_expenses: Vec<(String, String)> = sqlx::query_as(
+            "SELECT fe.label, mfe.recorded_on FROM monthly_fixed_expenses mfe JOIN fixed_expenses fe ON mfe.fixed_expense_id = fe.id WHERE mfe.month_id = ?",
+        )
+        .bind(m.id)
+        .fetch_all(&pool)
+        .await?;
+
         let mut item_exports = Vec::new();
         for item in items {
             let cat = categories.iter().find(|c| c.id == item.category_id);
@@ -154,6 +225,8 @@ pub async fn export_json(
             year: m.year,
             month: m.month,
             is_closed: m.is_closed,
+            current_account_balance,
+            monthly_savings_amount: monthly_savings,
             income_entries: income_entries
                 .into_iter()
                 .map(|i| IncomeExport {
@@ -169,18 +242,34 @@ pub async fn export_json(
                 })
                 .collect(),
             items: item_exports,
+            monthly_fixed_expenses: monthly_fixed_expenses
+                .into_iter()
+                .map(|(label, recorded_on)| MonthlyFixedExpenseExport {
+                    label,
+                    recorded_on,
+                })
+                .collect(),
         });
     }
 
     Ok(Json(UserExport {
-        version: 1,
+        version: 2,
         savings: Some(savings),
         retirement_savings: Some(retirement_savings),
+        preferences: Some(prefs),
         fixed_expenses: fixed_expenses
             .into_iter()
             .map(|e| FixedExpenseExport {
                 label: e.label,
                 amount: e.amount,
+            })
+            .collect(),
+        recurring_wages: recurring_wages
+            .into_iter()
+            .map(|(label, amount, effective_from)| RecurringWageExport {
+                label,
+                amount,
+                effective_from,
             })
             .collect(),
         categories: categories
@@ -235,6 +324,18 @@ pub async fn import_json(
             .bind(month_id)
             .execute(&mut *tx)
             .await?;
+        sqlx::query("DELETE FROM monthly_fixed_expenses WHERE month_id = ?")
+            .bind(month_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM monthly_current_account WHERE month_id = ?")
+            .bind(month_id)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("DELETE FROM monthly_savings WHERE month_id = ?")
+            .bind(month_id)
+            .execute(&mut *tx)
+            .await?;
     }
 
     sqlx::query("DELETE FROM months WHERE user_id = ?")
@@ -246,6 +347,10 @@ pub async fn import_json(
         .execute(&mut *tx)
         .await?;
     sqlx::query("DELETE FROM fixed_expenses WHERE user_id = ?")
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM recurring_wages WHERE user_id = ?")
         .bind(claims.sub)
         .execute(&mut *tx)
         .await?;
@@ -265,14 +370,43 @@ pub async fn import_json(
             .execute(&mut *tx)
             .await?;
     }
-
+    // Import preferences
+    if let Some(prefs) = data.preferences {
+        sqlx::query(
+            "UPDATE users SET recurring_wages_enabled = ?, current_account_enabled = ?, custom_savings_goals_enabled = ? WHERE id = ?"
+        )
+        .bind(if prefs.recurring_wages_enabled { 1 } else { 0 })
+        .bind(if prefs.current_account_enabled { 1 } else { 0 })
+        .bind(if prefs.custom_savings_goals_enabled { 1 } else { 0 })
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await?
+    }
+    // Import fixed expenses
+    let mut fixed_expense_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
     for expense in &data.fixed_expenses {
-        sqlx::query("INSERT INTO fixed_expenses (user_id, label, amount) VALUES (?, ?, ?)")
-            .bind(claims.sub)
-            .bind(&expense.label)
-            .bind(expense.amount)
-            .execute(&mut *tx)
-            .await?;
+        let id: i64 = sqlx::query_scalar(
+            "INSERT INTO fixed_expenses (user_id, label, amount) VALUES (?, ?, ?) RETURNING id",
+        )
+        .bind(claims.sub)
+        .bind(&expense.label)
+        .bind(expense.amount)
+        .fetch_one(&mut *tx)
+        .await?;
+        fixed_expense_map.insert(expense.label.clone(), id);
+    }
+
+    // Import recurring wages
+    for wage in &data.recurring_wages {
+        sqlx::query(
+            "INSERT INTO recurring_wages (user_id, label, amount, effective_from) VALUES (?, ?, ?, ?)",
+        )
+        .bind(claims.sub)
+        .bind(&wage.label)
+        .bind(wage.amount)
+        .bind(&wage.effective_from)
+        .execute(&mut *tx)
+        .await?;
     }
 
     let mut category_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
@@ -298,6 +432,26 @@ pub async fn import_json(
         .bind(month_data.is_closed)
         .fetch_one(&mut *tx)
         .await?;
+
+        // Restore current account balance
+        if let Some(balance) = month_data.current_account_balance {
+            sqlx::query(
+                "INSERT INTO monthly_current_account (month_id, balance) VALUES (?, ?)",
+            )
+            .bind(month_id)
+            .bind(balance)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        // Restore monthly savings
+        if let Some(savings) = month_data.monthly_savings_amount {
+            sqlx::query("INSERT INTO monthly_savings (month_id, savings) VALUES (?, ?)")
+                .bind(month_id)
+                .bind(savings)
+                .execute(&mut *tx)
+                .await?;
+        }
 
         for income in &month_data.income_entries {
             sqlx::query("INSERT INTO income_entries (month_id, label, amount) VALUES (?, ?, ?)")
@@ -331,6 +485,20 @@ pub async fn import_json(
                 .bind(&item.description)
                 .bind(item.amount)
                 .bind(&item.spent_on)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        // Restore monthly fixed expenses
+        for mfe in &month_data.monthly_fixed_expenses {
+            if let Some(&fe_id) = fixed_expense_map.get(&mfe.label) {
+                sqlx::query(
+                    "INSERT INTO monthly_fixed_expenses (fixed_expense_id, month_id, recorded_on) VALUES (?, ?, ?)",
+                )
+                .bind(fe_id)
+                .bind(month_id)
+                .bind(&mfe.recorded_on)
                 .execute(&mut *tx)
                 .await?;
             }
