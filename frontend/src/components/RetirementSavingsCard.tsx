@@ -4,6 +4,8 @@ import { api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { useCardEdit } from "../hooks/useCardEdit";
+import { useCurrency } from "../context/CurrencyContext";
+import { convertUSDPrice } from "../services/stockService";
 
 interface BreakdownItem {
   id: string;
@@ -20,6 +22,8 @@ interface RetirementSavingsCardProps {
 
 export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardProps) {
   const [amount, setAmount] = useState<number>(0);
+  const [conversionRate, setConversionRate] = useState<number>(1);
+  const { formatCurrency, currency } = useCurrency();
   const [breakdownItems, setBreakdownItems] = useState<BreakdownItem[]>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -32,15 +36,24 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
     return [];
   });
 
-  // Helper function to format USD prices
-  const formatUSDPrice = (usdPrice: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(usdPrice);
-  };
+  // Fetch conversion rate when currency changes
+  useEffect(() => {
+    const fetchConversionRate = async () => {
+      if (currency.code === "USD") {
+        setConversionRate(1);
+        return;
+      }
+
+      try {
+        const converted = await convertUSDPrice(1, currency.code);
+        setConversionRate(converted);
+      } catch (err) {
+        setConversionRate(1); // Fallback to 1:1 if conversion fails
+      }
+    };
+
+    fetchConversionRate();
+  }, [currency.code]);
 
   const { isEditing, editValue, startEdit, cancelEdit, saveEdit, setEditValue } = useCardEdit({
     initialValue: amount,
@@ -66,7 +79,8 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
   }, []);
 
   const breakdownTotal = breakdownItems.reduce((sum, item) => sum + item.amount, 0);
-  const totalAmount = amount + breakdownTotal;
+  const totalAmountUSD = amount + breakdownTotal;
+  const totalAmount = totalAmountUSD * conversionRate;
 
   return (
     <Card>
@@ -100,7 +114,7 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
           ) : (
             <div className="flex items-center gap-1">
               <span className="text-xl font-semibold text-sage-600 dark:text-sage-400">
-                {formatUSDPrice(totalAmount)}
+                {formatCurrency(totalAmount)}
               </span>
               <button
                 onClick={startEdit}

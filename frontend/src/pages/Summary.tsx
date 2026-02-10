@@ -86,7 +86,7 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
             const items = JSON.parse(stored);
             setRetirementBreakdown(items);
           } catch (e) {
-            console.error("Failed to parse retirement breakdown:", e);
+            // Failed to parse, will show empty breakdown
           }
         }
 
@@ -98,7 +98,6 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
             const converted = await convertUSDPrice(1, currency.code);
             setConversionRate(converted);
           } catch (err) {
-            console.error("Failed to fetch conversion rate:", err);
             setConversionRate(1);
           }
         }
