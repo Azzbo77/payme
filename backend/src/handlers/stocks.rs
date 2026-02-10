@@ -1,4 +1,4 @@
-use axum::{extract::Query, http::StatusCode, Extension, Json};
+use axum::{extract::Query, Extension, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -354,7 +354,7 @@ async fn fetch_exchange_rate(
         return Err(PaymeError::BadRequest(format!("Invalid currency: {}", error)));
     }
     
-    if let Some(info) = data.get("Information") {
+    if let Some(_info) = data.get("Information") {
         return Err(PaymeError::Internal(
             "API call frequency limit reached. Please try again later.".to_string(),
         ));

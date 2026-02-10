@@ -4,7 +4,6 @@ import { api } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { useCardEdit } from "../hooks/useCardEdit";
-import { useCurrency } from "../context/CurrencyContext";
 
 interface BreakdownItem {
   id: string;
@@ -33,7 +32,15 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
     return [];
   });
 
-  const { formatCurrency } = useCurrency();
+  // Helper function to format USD prices
+  const formatUSDPrice = (usdPrice: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(usdPrice);
+  };
 
   const { isEditing, editValue, startEdit, cancelEdit, saveEdit, setEditValue } = useCardEdit({
     initialValue: amount,
@@ -93,7 +100,7 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
           ) : (
             <div className="flex items-center gap-1">
               <span className="text-xl font-semibold text-sage-600 dark:text-sage-400">
-                {formatCurrency(totalAmount)}
+                {formatUSDPrice(totalAmount)}
               </span>
               <button
                 onClick={startEdit}

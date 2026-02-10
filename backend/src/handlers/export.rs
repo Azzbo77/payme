@@ -380,7 +380,7 @@ pub async fn import_json(
         .bind(if prefs.custom_savings_goals_enabled { 1 } else { 0 })
         .bind(claims.sub)
         .execute(&mut *tx)
-        .await?
+        .await?;
     }
     // Import fixed expenses
     let mut fixed_expense_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();

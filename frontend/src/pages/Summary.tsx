@@ -5,6 +5,7 @@ import { api, MonthSummary, StatsResponse, Month } from "../api/client";
 import { useCurrency } from "../context/CurrencyContext";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { convertUSDPrice } from "../services/stockService";
 import {
   PieChart,
   Pie,
@@ -37,7 +38,7 @@ const COLORS = [
 ];
 
 export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: SummaryPageProps) {
-  const { formatCurrency } = useCurrency();
+  const { formatCurrency, currency } = useCurrency();
   const [viewMode, setViewMode] = useState<"month" | "year">("month");
   const [loading, setLoading] = useState(true);
   const [months, setMonths] = useState<Month[]>([]);
@@ -45,6 +46,13 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
   const [monthSummary, setMonthSummary] = useState<MonthSummary | null>(null);
   const [yearStats, setYearStats] = useState<StatsResponse | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Retirement breakdown state
+  const [retirementBreakdown, setRetirementBreakdown] = useState<
+    Array<{ id: string; label: string; amount: number; type?: "custom" | "stock"; ticker?: string; quantity?: number; currentPrice?: number; lastUpdated?: number }>
+  >([]);
+  const [conversionRate, setConversionRate] = useState<number>(1);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -65,6 +73,42 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
     };
     loadInitialData();
   }, [initialMonthId]);
+
+  // Load retirement breakdown and conversion rate
+  useEffect(() => {
+    const loadRetirementBreakdown = async () => {
+      setBreakdownLoading(true);
+      try {
+        // Load from localStorage
+        const stored = localStorage.getItem("retirementBreakdown");
+        if (stored) {
+          try {
+            const items = JSON.parse(stored);
+            setRetirementBreakdown(items);
+          } catch (e) {
+            console.error("Failed to parse retirement breakdown:", e);
+          }
+        }
+
+        // Fetch conversion rate
+        if (currency.code === "USD") {
+          setConversionRate(1);
+        } else {
+          try {
+            const converted = await convertUSDPrice(1, currency.code);
+            setConversionRate(converted);
+          } catch (err) {
+            console.error("Failed to fetch conversion rate:", err);
+            setConversionRate(1);
+          }
+        }
+      } finally {
+        setBreakdownLoading(false);
+      }
+    };
+
+    loadRetirementBreakdown();
+  }, [currency.code]);
 
   useEffect(() => {
     if (viewMode === "month" && selectedMonthId) {
@@ -173,6 +217,12 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
   const savingsRate = monthSummary 
     ? ((monthSummary.total_income - monthSummary.total_fixed - monthSummary.total_spent) / monthSummary.total_income * 100)
     : 0;
+
+  // Helper function to format USD price in user's currency
+  const formatUSDPriceInCurrency = (usdPrice: number) => {
+    const convertedPrice = usdPrice * conversionRate;
+    return formatCurrency(convertedPrice);
+  };
 
   return (
     <Layout onSettingsClick={onSettingsClick}>
@@ -401,6 +451,63 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
                       <Bar dataKey="amount" fill="#6b8e8e" />
                     </BarChart>
                   </ResponsiveContainer>
+                </div>
+              </Card>
+            )}
+
+            {retirementBreakdown.length > 0 && !breakdownLoading && (
+              <Card>
+                <h3 className="text-sm font-medium text-charcoal-700 dark:text-sand-200 mb-4">
+                  Retirement Savings Breakdown
+                </h3>
+                <div className="overflow-x-auto -mx-4 px-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-sand-300 dark:border-charcoal-700">
+                        <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Account/Source
+                        </th>
+                        <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Quantity
+                        </th>
+                        <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Price/Amount
+                        </th>
+                        <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {retirementBreakdown.map((item) => {
+                        const isStock = item.type === "stock";
+                        return (
+                          <tr
+                            key={item.id}
+                            className="border-b border-sand-200 dark:border-charcoal-800 hover:bg-sand-100 dark:hover:bg-charcoal-900/50"
+                          >
+                            <td className="py-2 px-1 text-charcoal-800 dark:text-sand-200 text-xs md:text-sm font-medium">
+                              {item.label}
+                              {isStock && item.lastUpdated && (
+                                <div className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                                  Updated: {new Date(item.lastUpdated).toLocaleDateString()}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-charcoal-600 dark:text-sand-300">
+                              {isStock ? item.quantity : "—"}
+                            </td>
+                            <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-charcoal-600 dark:text-sand-300">
+                              {isStock ? formatUSDPriceInCurrency(item.currentPrice || 0) : "—"}
+                            </td>
+                            <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-sage-600 dark:text-sage-400">
+                              {isStock ? formatUSDPriceInCurrency(item.amount || 0) : formatCurrency(item.amount)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </Card>
             )}

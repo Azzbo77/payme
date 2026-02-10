@@ -9,7 +9,7 @@ import { useEncryptedStorage } from "../hooks/useEncryptedStorage";
 import { useCurrency } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
 import { useAuth } from "../context/AuthContext";
-import { getStockPrice, convertUSDPrice } from "../services/stockService";
+import { getStockPrice } from "../services/stockService";
 
 interface BreakdownItem {
   id: string;
@@ -18,44 +18,24 @@ interface BreakdownItem {
   type?: "custom" | "stock";
   ticker?: string;
   quantity?: number;
-  currentPrice?: number;
+  currentPrice?: number; // Always in USD
   lastUpdated?: number;
-  currencyCode?: string;
 }
 
 export function RetirementBreakdownCard() {
-  const { formatCurrency, currency } = useCurrency();
+  const { formatCurrency } = useCurrency();
   const { user } = useAuth();
   const { retirementBreakdownEnabled, stockTrackingEnabled, portfolioEncryptionPassphrase } = useUIPreferences();
   const { success, error } = useToast();
 
-  // Helper function to format currency with a specific currency code
-  const formatCurrencyWithCode = (value: number, currencyCode?: string) => {
-    const code = currencyCode || currency.code;
-    const supportedCurrencies = [
-      { code: "USD", symbol: "$", locale: "en-US" },
-      { code: "GBP", symbol: "£", locale: "en-GB" },
-      { code: "EUR", symbol: "€", locale: "de-DE" },
-      { code: "JPY", symbol: "¥", locale: "ja-JP" },
-      { code: "AUD", symbol: "A$", locale: "en-AU" },
-      { code: "CAD", symbol: "C$", locale: "en-CA" },
-    ];
-    const currencyInfo = supportedCurrencies.find((c) => c.code === code);
-    if (!currencyInfo) {
-      return formatCurrency(value);
-    }
-
-    try {
-      const formatter = new Intl.NumberFormat(currencyInfo.locale, {
-        style: "currency",
-        currency: code,
-        minimumFractionDigits: code === "JPY" ? 0 : 2,
-        maximumFractionDigits: code === "JPY" ? 0 : 2,
-      });
-      return formatter.format(value);
-    } catch {
-      return `${currencyInfo.symbol}${value.toFixed(code === "JPY" ? 0 : 2)}`;
-    }
+  // Helper function to format USD prices
+  const formatUSDPrice = (usdPrice: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(usdPrice);
   };
   const [breakdownItems, setBreakdownItems] = useEncryptedStorage<BreakdownItem[]>(
     "retirementBreakdown",
@@ -131,26 +111,19 @@ export function RetirementBreakdownCard() {
         console.log("Fetching price for:", upperTicker);
         const usdPrice = await getStockPrice(upperTicker);
         console.log("Got USD price:", usdPrice);
-        const convertedPrice = await convertUSDPrice(usdPrice, currency.code);
-        console.log("Converted price:", convertedPrice, "to", currency.code);
-        
-        // If conversion failed, convertUSDPrice returns the USD price
-        // In that case, store currency code as USD not the user's currency
-        const storedCurrencyCode = convertedPrice === usdPrice && currency.code !== "USD" ? "USD" : currency.code;
         
         const newItem: BreakdownItem = {
           id: Date.now().toString(),
           label: `${upperTicker}`,
           ticker: upperTicker,
           quantity: numQuantity,
-          currentPrice: convertedPrice,
-          amount: convertedPrice * numQuantity,
+          currentPrice: usdPrice, // Store in USD
+          amount: usdPrice * numQuantity, // Store amount in USD
           type: "stock",
           lastUpdated: Date.now(),
-          currencyCode: storedCurrencyCode,
         };
         saveItems([...breakdownItems, newItem]);
-        success(`Added ${quantity} shares of ${upperTicker} at ${formatCurrency(convertedPrice)}`);
+        success(`Added ${quantity} shares of ${upperTicker} at ${formatUSDPrice(usdPrice)}`);
         resetForm();
       } catch (err) {
         console.error("Error adding stock:", err);
@@ -170,18 +143,13 @@ export function RetirementBreakdownCard() {
         setPriceLoading(item.id);
         try {
           const usdPrice = await getStockPrice(item.ticker, true);
-          const convertedPrice = await convertUSDPrice(usdPrice, currency.code);
-          // If conversion failed, convertUSDPrice returns the USD price
-          // In that case, store currency code as USD not the user's currency
-          const storedCurrencyCode = convertedPrice === usdPrice && currency.code !== "USD" ? "USD" : currency.code;
           const updated = breakdownItems.map((i) =>
             i.id === item.id
               ? {
                   ...i,
-                  currentPrice: convertedPrice,
-                  amount: convertedPrice * (i.quantity || 0),
+                  currentPrice: usdPrice, // Store in USD
+                  amount: usdPrice * (i.quantity || 0), // Store amount in USD
                   lastUpdated: Date.now(),
-                  currencyCode: storedCurrencyCode,
                 }
               : i
           );
@@ -226,20 +194,15 @@ export function RetirementBreakdownCard() {
       if (item.type === "stock") {
         const numQuantity = parseFloat(quantity);
         const usdPrice = await getStockPrice(ticker.toUpperCase(), true);
-        const convertedPrice = await convertUSDPrice(usdPrice, currency.code);
-        // If conversion failed, convertUSDPrice returns the USD price
-        // In that case, store currency code as USD not the user's currency
-        const storedCurrencyCode = convertedPrice === usdPrice && currency.code !== "USD" ? "USD" : currency.code;
         const updated = breakdownItems.map((i) =>
           i.id === id
             ? {
                 ...i,
                 ticker: ticker.toUpperCase(),
                 quantity: numQuantity,
-                currentPrice: convertedPrice,
-                amount: convertedPrice * numQuantity,
+                currentPrice: usdPrice, // Store in USD
+                amount: usdPrice * numQuantity, // Store amount in USD
                 lastUpdated: Date.now(),
-                currencyCode: storedCurrencyCode,
               }
             : i
         );
@@ -520,10 +483,10 @@ export function RetirementBreakdownCard() {
                         {isStock ? item.quantity : "—"}
                       </td>
                       <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-charcoal-600 dark:text-sand-300">
-                        {isStock ? formatCurrencyWithCode(item.currentPrice || 0, item.currencyCode) : "—"}
+                        {isStock ? formatUSDPrice(item.currentPrice || 0) : "—"}
                       </td>
                       <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-sage-600 dark:text-sage-400">
-                        {isStock ? formatCurrencyWithCode(item.amount || 0, item.currencyCode) : formatCurrency(item.amount)}
+                        {isStock ? formatUSDPrice(item.amount || 0) : formatCurrency(item.amount)}
                       </td>
                       {retirementBreakdownEnabled && (
                         <td className="py-2 px-1">
