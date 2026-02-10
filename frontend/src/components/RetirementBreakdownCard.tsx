@@ -63,8 +63,6 @@ export function RetirementBreakdownCard() {
   };
 
   const handleAdd = async () => {
-    console.log("handleAdd called", { addMode, ticker, quantity, label, amount });
-    
     if (addMode === "custom") {
       // Simple validation
       if (!label.trim() || !amount.trim()) {
@@ -108,9 +106,7 @@ export function RetirementBreakdownCard() {
       setAddLoading(true);
       try {
         const upperTicker = ticker.toUpperCase();
-        console.log("Fetching price for:", upperTicker);
         const usdPrice = await getStockPrice(upperTicker);
-        console.log("Got USD price:", usdPrice);
         
         const newItem: BreakdownItem = {
           id: Date.now().toString(),

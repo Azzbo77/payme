@@ -187,7 +187,6 @@ export async function convertUSDPrice(usdPrice: number, toCurrency: string): Pro
     }
 
     const converted = usdPrice * rate;
-    console.log(`Converted ${usdPrice} USD to ${converted} ${toCurrency} (rate: ${rate})`);
     return converted;
   } catch (error) {
     console.warn(`Exchange rate conversion failed, using USD:`, error);
