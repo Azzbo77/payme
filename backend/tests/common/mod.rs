@@ -10,8 +10,20 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use std::sync::Once;
 
 use axum::http::{HeaderName, HeaderValue};
+
+static INIT: Once = Once::new();
+
+/// Initialize test environment (sets JWT_SECRET if not already set)
+fn init_test_env() {
+    INIT.call_once(|| {
+        if std::env::var("JWT_SECRET").is_err() {
+            std::env::set_var("JWT_SECRET", "test-secret-key");
+        }
+    });
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
@@ -22,6 +34,8 @@ pub struct Claims {
 
 /// Create an in-memory SQLite pool and run migrations
 pub async fn create_test_pool() -> SqlitePool {
+    init_test_env();
+    
     let pool = SqlitePool::connect(":memory:")
         .await
         .expect("Failed to create in-memory database");
@@ -217,7 +231,7 @@ pub async fn create_test_user(pool: &SqlitePool, username: &str, password: &str)
 /// Generate a JWT token for a user
 pub fn generate_token(user_id: i64, username: &str) -> String {
     let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "payme-secret-key-change-in-production".to_string());
+        .unwrap_or_else(|_| "test-secret-key".to_string());
 
     let claims = Claims {
         sub: user_id,
@@ -236,7 +250,7 @@ pub fn generate_token(user_id: i64, username: &str) -> String {
 /// Generate an expired JWT token for testing
 pub fn generate_expired_token(user_id: i64, username: &str) -> String {
     let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "payme-secret-key-change-in-production".to_string());
+        .unwrap_or_else(|_| "test-secret-key".to_string());
 
     let claims = Claims {
         sub: user_id,
