@@ -8,6 +8,10 @@ pub async fn create_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> 
     Ok(pool)
 }
 
+/// Run database migrations
+/// 
+/// NOTE: Keep this in sync with the test migrations in backend/tests/common/mod.rs
+/// Both should have identical table schemas and ALTER TABLE statements
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
@@ -24,40 +28,33 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
-    sqlx::query("ALTER TABLE users ADD COLUMN savings REAL NOT NULL DEFAULT 0")
+    let _ = sqlx::query("ALTER TABLE users ADD COLUMN savings REAL NOT NULL DEFAULT 0")
         .execute(pool)
-        .await
-        .ok();
+        .await;
 
-    sqlx::query("ALTER TABLE users ADD COLUMN retirement_savings REAL NOT NULL DEFAULT 0")
+    let _ = sqlx::query("ALTER TABLE users ADD COLUMN retirement_savings REAL NOT NULL DEFAULT 0")
         .execute(pool)
-        .await
-        .ok();
+        .await;
 
-    sqlx::query("ALTER TABLE users ADD COLUMN savings_goal REAL NOT NULL DEFAULT 0")
+    let _ = sqlx::query("ALTER TABLE users ADD COLUMN savings_goal REAL NOT NULL DEFAULT 0")
         .execute(pool)
-        .await
-        .ok();
+        .await;
 
-    sqlx::query("ALTER TABLE users ADD COLUMN recurring_wages_enabled INTEGER NOT NULL DEFAULT 1")
+    let _ = sqlx::query("ALTER TABLE users ADD COLUMN recurring_wages_enabled INTEGER NOT NULL DEFAULT 1")
         .execute(pool)
-        .await
-        .ok();
+        .await;
 
-    sqlx::query("ALTER TABLE users ADD COLUMN current_account_enabled INTEGER NOT NULL DEFAULT 1")
+    let _ = sqlx::query("ALTER TABLE users ADD COLUMN current_account_enabled INTEGER NOT NULL DEFAULT 1")
         .execute(pool)
-        .await
-        .ok();
+        .await;
 
-    sqlx::query("ALTER TABLE users ADD COLUMN custom_savings_goals_enabled INTEGER NOT NULL DEFAULT 1")
+    let _ = sqlx::query("ALTER TABLE users ADD COLUMN custom_savings_goals_enabled INTEGER NOT NULL DEFAULT 1")
         .execute(pool)
-        .await
-        .ok();
+        .await;
 
-    sqlx::query("UPDATE users SET retirement_savings = roth_ira WHERE retirement_savings = 0 AND roth_ira IS NOT NULL AND roth_ira > 0")
+    let _ = sqlx::query("UPDATE users SET retirement_savings = roth_ira WHERE retirement_savings = 0 AND roth_ira IS NOT NULL AND roth_ira > 0")
         .execute(pool)
-        .await
-        .ok();
+        .await;
 
     sqlx::query(
         r#"
@@ -264,8 +261,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             .bind(&label)
             .bind(amount)
             .execute(pool)
-            .await
-            .ok();
+            .await;
         }
 
         // Copy current savings values to this month
@@ -286,8 +282,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             .bind(retirement_savings)
             .bind(savings_goal)
             .execute(pool)
-            .await
-            .ok();
+            .await;
         }
     }
 

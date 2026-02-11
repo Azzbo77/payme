@@ -45,6 +45,9 @@ pub async fn create_test_pool() -> SqlitePool {
 }
 
 /// Run database migrations (copied from db/mod.rs to avoid circular deps)
+/// 
+/// NOTE: Keep this in sync with the production migrations in backend/src/db/mod.rs
+/// Both should have identical table schemas and ALTER TABLE statements
 async fn run_migrations(pool: &SqlitePool) {
     sqlx::query(
         r#"
