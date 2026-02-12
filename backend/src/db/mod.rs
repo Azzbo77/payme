@@ -52,6 +52,10 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await;
 
+    let _ = sqlx::query("ALTER TABLE users ADD COLUMN fixed_expenses_enabled INTEGER NOT NULL DEFAULT 0")
+        .execute(pool)
+        .await;
+
     let _ = sqlx::query("UPDATE users SET retirement_savings = roth_ira WHERE retirement_savings = 0 AND roth_ira IS NOT NULL AND roth_ira > 0")
         .execute(pool)
         .await;
@@ -178,14 +182,26 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         CREATE TABLE IF NOT EXISTS monthly_fixed_expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             month_id INTEGER NOT NULL,
+            fixed_expense_id INTEGER,
             label TEXT NOT NULL,
             amount REAL NOT NULL,
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
+            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE,
+            FOREIGN KEY (fixed_expense_id) REFERENCES fixed_expenses(id) ON DELETE SET NULL
         )
         "#,
     )
     .execute(pool)
     .await?;
+
+    // Migration: Add fixed_expense_id column if it doesn't exist (for existing databases)
+    let _ = sqlx::query("ALTER TABLE monthly_fixed_expenses ADD COLUMN fixed_expense_id INTEGER REFERENCES fixed_expenses(id) ON DELETE SET NULL")
+        .execute(pool)
+        .await;
+    
+    // Also try without FK (for SQLite compatibility on some versions)
+    let _ = sqlx::query("ALTER TABLE monthly_fixed_expenses ADD COLUMN fixed_expense_id INTEGER")
+        .execute(pool)
+        .await;
 
     sqlx::query(
         r#"
@@ -246,18 +262,19 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
 
     for (month_id, user_id) in existing_months {
         // Copy current fixed expenses to this month
-        let fixed_expenses: Vec<(String, f64)> =
-            sqlx::query_as("SELECT label, amount FROM fixed_expenses WHERE user_id = ?")
+        let fixed_expenses: Vec<(i64, String, f64)> =
+            sqlx::query_as("SELECT id, label, amount FROM fixed_expenses WHERE user_id = ?")
                 .bind(user_id)
                 .fetch_all(pool)
                 .await
                 .unwrap_or_default();
 
-        for (label, amount) in fixed_expenses {
+        for (expense_id, label, amount) in fixed_expenses {
             sqlx::query(
-                "INSERT INTO monthly_fixed_expenses (month_id, label, amount) VALUES (?, ?, ?)",
+                "INSERT INTO monthly_fixed_expenses (month_id, fixed_expense_id, label, amount) VALUES (?, ?, ?, ?)",
             )
             .bind(month_id)
+            .bind(expense_id)
             .bind(&label)
             .bind(amount)
             .execute(pool)

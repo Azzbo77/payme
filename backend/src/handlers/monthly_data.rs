@@ -15,6 +15,7 @@ use crate::models::{CurrentAccountBalance, MonthlyFixedExpense, MonthlySavings};
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct CreateMonthlyFixedExpense {
+    pub fixed_expense_id: Option<i64>,
     #[validate(length(min = 1, max = 100))]
     pub label: String,
     #[validate(range(min = 0.0))]
@@ -23,6 +24,7 @@ pub struct CreateMonthlyFixedExpense {
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct UpdateMonthlyFixedExpense {
+    pub fixed_expense_id: Option<i64>,
     #[validate(length(min = 1, max = 100))]
     pub label: Option<String>,
     #[validate(range(min = 0.0))]
@@ -59,9 +61,10 @@ pub async fn create_monthly_fixed_expense(
         .ok_or(PaymeError::NotFound)?;
 
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO monthly_fixed_expenses (month_id, label, amount) VALUES (?, ?, ?) RETURNING id",
+        "INSERT INTO monthly_fixed_expenses (month_id, fixed_expense_id, label, amount) VALUES (?, ?, ?, ?) RETURNING id",
     )
     .bind(month_id)
+    .bind(payload.fixed_expense_id)
     .bind(&payload.label)
     .bind(payload.amount)
     .fetch_one(&pool)
@@ -70,6 +73,7 @@ pub async fn create_monthly_fixed_expense(
     Ok(Json(MonthlyFixedExpense {
         id,
         month_id,
+        fixed_expense_id: payload.fixed_expense_id,
         label: payload.label,
         amount: payload.amount,
     }))
@@ -108,7 +112,7 @@ pub async fn update_monthly_fixed_expense(
         .ok_or(PaymeError::NotFound)?;
 
     let existing: MonthlyFixedExpense = sqlx::query_as(
-        "SELECT id, month_id, label, amount FROM monthly_fixed_expenses WHERE id = ? AND month_id = ?",
+        "SELECT id, month_id, fixed_expense_id, label, amount FROM monthly_fixed_expenses WHERE id = ? AND month_id = ?",
     )
     .bind(expense_id)
     .bind(month_id)
@@ -116,10 +120,12 @@ pub async fn update_monthly_fixed_expense(
     .await?
     .ok_or(PaymeError::NotFound)?;
 
+    let fixed_expense_id = payload.fixed_expense_id.or(existing.fixed_expense_id);
     let label = payload.label.unwrap_or(existing.label);
     let amount = payload.amount.unwrap_or(existing.amount);
 
-    sqlx::query("UPDATE monthly_fixed_expenses SET label = ?, amount = ? WHERE id = ?")
+    sqlx::query("UPDATE monthly_fixed_expenses SET fixed_expense_id = ?, label = ?, amount = ? WHERE id = ?")
+        .bind(fixed_expense_id)
         .bind(&label)
         .bind(amount)
         .bind(expense_id)
@@ -129,6 +135,7 @@ pub async fn update_monthly_fixed_expense(
     Ok(Json(MonthlyFixedExpense {
         id: expense_id,
         month_id,
+        fixed_expense_id,
         label,
         amount,
     }))
@@ -165,6 +172,41 @@ pub async fn delete_monthly_fixed_expense(
         .await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/months/{month_id}/available-fixed-expenses",
+    params(("month_id" = i64, Path, description = "Month ID")),
+    responses(
+        (status = 200, body = Vec<crate::models::FixedExpense>),
+        (status = 404, description = "Month not found"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Months",
+    summary = "Get available fixed expenses for a month",
+    description = "Retrieves all fixed expense templates available for the user that can be added to a month."
+)]
+pub async fn get_available_fixed_expenses(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Path(month_id): Path<i64>,
+) -> Result<Json<Vec<crate::models::FixedExpense>>, PaymeError> {
+    // Verify month exists
+    let _: (i64,) = sqlx::query_as("SELECT id FROM months WHERE id = ? AND user_id = ?")
+        .bind(month_id)
+        .bind(claims.sub)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or(PaymeError::NotFound)?;
+
+    let expenses: Vec<crate::models::FixedExpense> =
+        sqlx::query_as("SELECT id, user_id, label, amount FROM fixed_expenses WHERE user_id = ?")
+            .bind(claims.sub)
+            .fetch_all(&pool)
+            .await?;
+
+    Ok(Json(expenses))
 }
 
 #[derive(Deserialize, ToSchema, Validate)]
@@ -674,6 +716,64 @@ pub async fn set_custom_savings_goals_enabled(
     let enabled_int = if enabled { 1 } else { 0 };
 
     sqlx::query("UPDATE users SET custom_savings_goals_enabled = ? WHERE id = ?")
+        .bind(enabled_int)
+        .bind(claims.sub)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled })))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/fixed-expenses/preferences/enabled",
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Fixed Expenses",
+    summary = "Get fixed expenses enabled status",
+    description = "Checks if fixed expenses feature is enabled for the user."
+)]
+pub async fn get_fixed_expenses_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let (enabled,): (i32,) = sqlx::query_as(
+        "SELECT fixed_expenses_enabled FROM users WHERE id = ?",
+    )
+    .bind(claims.sub)
+    .fetch_one(&pool)
+    .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/fixed-expenses/preferences/enabled",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Fixed Expenses",
+    summary = "Set fixed expenses enabled status",
+    description = "Enables or disables fixed expenses feature for the user."
+)]
+pub async fn set_fixed_expenses_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled = payload
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| PaymeError::BadRequest("Invalid payload".to_string()))?;
+
+    let enabled_int = if enabled { 1 } else { 0 };
+
+    sqlx::query("UPDATE users SET fixed_expenses_enabled = ? WHERE id = ?")
         .bind(enabled_int)
         .bind(claims.sub)
         .execute(&pool)

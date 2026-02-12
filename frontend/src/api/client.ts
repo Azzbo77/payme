@@ -88,6 +88,13 @@ export const api = {
       }),
     delete: (id: number) =>
       request<void>(`/fixed-expenses/${id}`, { method: "DELETE" }),
+    getEnabled: () =>
+      request<{ enabled: boolean }>(`/fixed-expenses/preferences/enabled`),
+    setEnabled: (enabled: boolean) =>
+      request<{ enabled: boolean }>(`/fixed-expenses/preferences/enabled`, {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      }),
   },
 
   categories: {
@@ -214,12 +221,14 @@ export const api = {
   },
 
   monthlyFixedExpenses: {
-    create: (monthId: number, data: { label: string; amount: number }) =>
+    getAvailable: (monthId: number) =>
+      request<FixedExpense[]>(`/months/${monthId}/available-fixed-expenses`),
+    create: (monthId: number, data: { label: string; amount: number; fixed_expense_id?: number }) =>
       request<MonthlyFixedExpense>(`/months/${monthId}/fixed-expenses`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    update: (monthId: number, id: number, data: { label?: string; amount?: number }) =>
+    update: (monthId: number, id: number, data: { label?: string; amount?: number; fixed_expense_id?: number }) =>
       request<MonthlyFixedExpense>(`/months/${monthId}/fixed-expenses/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -345,6 +354,7 @@ export interface FixedExpense {
 export interface MonthlyFixedExpense {
   id: number;
   month_id: number;
+  fixed_expense_id?: number | null;
   label: string;
   amount: number;
 }

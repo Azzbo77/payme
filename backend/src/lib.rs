@@ -63,6 +63,10 @@ pub fn create_app(pool: SqlitePool) -> Router {
             delete(monthly_data::delete_monthly_fixed_expense),
         )
         .route(
+            "/api/months/{month_id}/available-fixed-expenses",
+            get(monthly_data::get_available_fixed_expenses),
+        )
+        .route(
             "/api/months/{month_id}/savings",
             get(monthly_data::get_monthly_savings),
         )
@@ -136,6 +140,8 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .route("/api/current-account/preferences/enabled", put(monthly_data::set_current_account_enabled))
         .route("/api/custom-savings-goals/preferences/enabled", get(monthly_data::get_custom_savings_goals_enabled))
         .route("/api/custom-savings-goals/preferences/enabled", put(monthly_data::set_custom_savings_goals_enabled))
+        .route("/api/fixed-expenses/preferences/enabled", get(monthly_data::get_fixed_expenses_enabled))
+        .route("/api/fixed-expenses/preferences/enabled", put(monthly_data::set_fixed_expenses_enabled))
         .route("/api/recurring-wages/{id}", put(income::update_recurring_wage))
         .route("/api/recurring-wages/{id}", delete(income::delete_recurring_wage))
         .route("/api/stats", get(stats::get_stats))

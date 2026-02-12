@@ -7,7 +7,7 @@ import { Modal } from "../components/ui/Modal";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
-import { api, RecurringWage } from "../api/client";
+import { api, RecurringWage, FixedExpense } from "../api/client";
 import { ArrowLeft, Info, Eye, EyeOff, Trash2 } from "lucide-react";
 
 interface SettingsProps {
@@ -18,7 +18,7 @@ interface SettingsProps {
 export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase } = useUIPreferences();
+  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, fixedExpensesEnabled, setFixedExpensesEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -43,6 +43,7 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [showRecurringWagesInfoModal, setShowRecurringWagesInfoModal] = useState(false);
   const [showCurrentAccountInfoModal, setShowCurrentAccountInfoModal] = useState(false);
   const [showCustomSavingsGoalsInfoModal, setShowCustomSavingsGoalsInfoModal] = useState(false);
+  const [showFixedExpensesInfoModal, setShowFixedExpensesInfoModal] = useState(false);
   const [showStockFeatureModal, setShowStockFeatureModal] = useState(false);
   const [showPortfolioEncryptionModal, setShowPortfolioEncryptionModal] = useState(false);
   const [showEncryptionInfoModal, setShowEncryptionInfoModal] = useState(false);
@@ -58,6 +59,15 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [wageEffectiveFrom, setWageEffectiveFrom] = useState("");
   const [wageLoading, setWageLoading] = useState(false);
   const [wageError, setWageError] = useState("");
+
+  // Fixed expenses state
+  const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([]);
+  const [showFixedExpensesManageModal, setShowFixedExpensesManageModal] = useState(false);
+  const [fixedExpensesLoaded, setFixedExpensesLoaded] = useState(false);
+  const [expenseLabel, setExpenseLabel] = useState("");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseLoading, setExpenseLoading] = useState(false);
+  const [expenseError, setExpenseError] = useState("");
 
   const loadRecurringWages = async () => {
     try {
@@ -121,6 +131,69 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
     setShowRecurringWagesManageModal(true);
     if (!recurringWagesLoaded) {
       await loadRecurringWages();
+    }
+  };
+
+  const loadFixedExpenses = async () => {
+    try {
+      const expenses = await api.fixedExpenses.list();
+      setFixedExpenses(expenses);
+      setFixedExpensesLoaded(true);
+    } catch {
+      setExpenseError("Failed to load fixed expenses");
+    }
+  };
+
+  const handleAddFixedExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setExpenseError("");
+
+    if (!expenseLabel || !expenseAmount) {
+      setExpenseError("Please fill in all fields");
+      return;
+    }
+
+    if (parseFloat(expenseAmount) <= 0) {
+      setExpenseError("Amount must be greater than 0");
+      return;
+    }
+
+    setExpenseLoading(true);
+    try {
+      await api.fixedExpenses.create({
+        label: expenseLabel,
+        amount: parseFloat(expenseAmount),
+      });
+      // Reload expenses
+      await loadFixedExpenses();
+      // Reset form
+      setExpenseLabel("");
+      setExpenseAmount("");
+      setExpenseError("");
+    } catch {
+      setExpenseError("Failed to add fixed expense");
+    } finally {
+      setExpenseLoading(false);
+    }
+  };
+
+  const handleDeleteFixedExpense = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this expense template?")) {
+      return;
+    }
+
+    try {
+      await api.fixedExpenses.delete(id);
+      await loadFixedExpenses();
+    } catch {
+      setExpenseError("Failed to delete fixed expense");
+    }
+  };
+
+  const openFixedExpensesModal = async () => {
+    setShowFixedExpensesManageModal(true);
+    if (!fixedExpensesLoaded) {
+      await loadFixedExpenses();
     }
   };
 
@@ -414,35 +487,42 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           </div>
 
           <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <div className="flex items-center gap-2 mb-4">
-              <h2 className="text-base sm:text-lg font-medium text-charcoal-800 dark:text-sand-100">
-                Portfolio Encryption
-              </h2>
-              <button
-                onClick={() => setShowEncryptionInfoModal(true)}
-                className="p-1 text-charcoal-500 dark:text-charcoal-400 hover:text-charcoal-700 dark:hover:text-sand-200 transition-colors"
-                title="Learn about encryption"
-              >
-                <Info size={18} />
-              </button>
-            </div>
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Portfolio Encryption
+            </h2>
             <div className="space-y-4">
-              <div>
-                <p className="text-sm text-charcoal-600 dark:text-charcoal-300 mb-3">
-                  Your retirement portfolio data is encrypted using your user ID. You can optionally add a passphrase for extra security.
-                </p>
-                <button
-                  onClick={() => setShowPortfolioEncryptionModal(true)}
-                  className="px-4 py-2 bg-sage-600 hover:bg-sage-700 dark:bg-sage-500 dark:hover:bg-sage-600 text-white rounded transition-colors text-sm font-medium"
-                >
-                  {portfolioEncryptionPassphrase ? "Update Passphrase" : "Add Passphrase"}
-                </button>
-                {portfolioEncryptionPassphrase && (
-                  <p className="text-xs text-sage-600 dark:text-sage-400 mt-2">
-                    ✓ Passphrase is set
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Secure Your Portfolio Data
+                    </label>
+                    <button
+                      onClick={() => setShowEncryptionInfoModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="Learn about encryption"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Your retirement portfolio data is encrypted using your user ID. You can optionally add a passphrase for extra security.
                   </p>
+                </div>
+                {portfolioEncryptionPassphrase && (
+                  <div className="ml-4 flex-shrink-0">
+                    <p className="text-xs text-sage-600 dark:text-sage-400">
+                      ✓ Set
+                    </p>
+                  </div>
                 )}
               </div>
+              <button
+                onClick={() => setShowPortfolioEncryptionModal(true)}
+                className="px-4 py-2 bg-sage-600 hover:bg-sage-700 dark:bg-sage-500 dark:hover:bg-sage-600 text-white rounded transition-colors text-sm font-medium w-full"
+              >
+                {portfolioEncryptionPassphrase ? "Update Passphrase" : "Add Passphrase"}
+              </button>
             </div>
           </div>
 
@@ -528,6 +608,52 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
               {recurringWagesEnabled && (
                 <Button onClick={openRecurringWagesModal} className="w-full">
                   Manage Recurring Wages
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
+            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+              Fixed Expense Templates
+            </h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Create Reusable Templates
+                    </label>
+                    <button
+                      onClick={() => setShowFixedExpensesInfoModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How to use fixed expenses"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Create reusable expense templates that you can quickly add to any month (e.g., Rent, Utilities, Insurance). You can select and adjust them when setting up each month.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFixedExpensesEnabled(!fixedExpensesEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 ${
+                    fixedExpensesEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      fixedExpensesEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              {fixedExpensesEnabled && (
+                <Button onClick={openFixedExpensesModal} className="w-full">
+                  Manage Fixed Expenses
                 </Button>
               )}
             </div>
@@ -970,6 +1096,91 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
         </div>
       </Modal>
 
+      <Modal 
+        isOpen={showFixedExpensesManageModal} 
+        onClose={() => {
+          setShowFixedExpensesManageModal(false);
+          setExpenseLabel("");
+          setExpenseAmount("");
+          setExpenseError("");
+        }}
+        title="Manage Fixed Expense Templates"
+      >
+        <div className="space-y-4">
+          {fixedExpenses.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-300 mb-3">
+                Your Templates
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto bg-sand-50 dark:bg-charcoal-800 p-3 rounded border border-sand-200 dark:border-charcoal-700">
+                {fixedExpenses.map((expense) => (
+                  <div key={expense.id} className="flex items-center justify-between text-sm">
+                    <div>
+                      <p className="font-medium text-charcoal-700 dark:text-sand-200">
+                        {expense.label}: {formatCurrency(expense.amount)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteFixedExpense(expense.id)}
+                      className="p-1 hover:bg-terracotta-100 dark:hover:bg-terracotta-900 rounded transition-colors"
+                      title="Delete expense template"
+                    >
+                      <Trash2 size={16} className="text-terracotta-600" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleAddFixedExpense} className="space-y-4 border-t border-sand-200 dark:border-charcoal-700 pt-4">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-300">
+              Add New Template
+            </h3>
+            <Input
+              label="Expense Label"
+              type="text"
+              value={expenseLabel}
+              onChange={(e) => setExpenseLabel(e.target.value)}
+              placeholder="e.g., Rent, Internet, Insurance"
+              disabled={expenseLoading}
+            />
+            <Input
+              label="Default Amount"
+              type="number"
+              step="0.01"
+              value={expenseAmount}
+              onChange={(e) => setExpenseAmount(e.target.value)}
+              placeholder="0.00"
+              disabled={expenseLoading}
+            />
+            {expenseError && (
+              <p className="text-sm text-terracotta-600">{expenseError}</p>
+            )}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="submit" disabled={expenseLoading} className="flex-1">
+                {expenseLoading ? "Saving..." : "Add Template"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setShowFixedExpensesManageModal(false);
+                  setExpenseLabel("");
+                  setExpenseAmount("");
+                  setExpenseError("");
+                }}
+                disabled={expenseLoading}
+                className="flex-1"
+              >
+                Close
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
       <Modal isOpen={showCurrentAccountInfoModal} onClose={() => setShowCurrentAccountInfoModal(false)}>
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
@@ -1085,7 +1296,60 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
         </div>
       </Modal>
 
-      <Modal isOpen={showStockFeatureModal} onClose={() => setShowStockFeatureModal(false)}>
+      <Modal isOpen={showFixedExpensesInfoModal} onClose={() => setShowFixedExpensesInfoModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Use Fixed Expenses
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What are fixed expenses?</p>
+              <p>Fixed expenses are recurring costs that stay roughly the same each month (e.g., Rent, Internet, Insurance). Create templates once and quickly add them to each month without retyping.</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How it works:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li><span className="font-medium">Create templates:</span> Go to "Manage Fixed Expenses" and add your recurring expenses (Rent: $1000, Internet: $50, etc.)</li>
+                <li><span className="font-medium">Select for months:</span> When viewing a month, click ⚙️ on the Fixed Expenses card</li>
+                <li><span className="font-medium">Quick add:</span> Click + next to any template to instantly add it that month</li>
+                <li><span className="font-medium">Adjust if needed:</span> Edit the amount for that specific month (e.g., extra internet bill)</li>
+                <li><span className="font-medium">Save:</span> Changes only affect that month - templates stay unchanged</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Price adjustments:</p>
+              <p>If you adjust a price for a specific month, an orange alert icon appears. This shows the price differs from your template - your global template is never changed.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Enable/Disable behavior:</p>
+              <ul className="space-y-1">
+                <li><span className="font-medium">When enabled:</span> Fixed Expenses card appears on dashboard where you can select templates and adjust prices.</li>
+                <li><span className="font-medium">When disabled:</span> The card hides. Your templates and month data are preserved if you re-enable later.</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Example workflow:</p>
+              <p className="text-xs bg-charcoal-100 dark:bg-charcoal-800 p-2 rounded">Templates: Rent ($1000), Internet ($50), Groceries ($300) → February: Add all three → March: Add all three + adjust Internet to $60 (extra charge) → April: Add Rent & Internet, skip Groceries</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowFixedExpensesInfoModal(false)}
+              className="w-full"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+```      <Modal isOpen={showStockFeatureModal} onClose={() => setShowStockFeatureModal(false)}>
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
             How to Add Stocks & Cryptocurrencies

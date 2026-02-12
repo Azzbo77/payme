@@ -14,6 +14,7 @@ pub struct FixedExpense {
 pub struct MonthlyFixedExpense {
     pub id: i64,
     pub month_id: i64,
+    pub fixed_expense_id: Option<i64>,
     pub label: String,
     pub amount: f64,
 }

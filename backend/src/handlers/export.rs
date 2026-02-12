@@ -61,7 +61,7 @@ pub struct MonthExport {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct MonthlyFixedExpenseExport {
     pub label: String,
-    pub recorded_on: String,
+    pub amount: f64,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -200,9 +200,9 @@ pub async fn export_json(
         .fetch_optional(&pool)
         .await?;
 
-        // Get recorded fixed expenses for this month
-        let monthly_fixed_expenses: Vec<(String, String)> = sqlx::query_as(
-            "SELECT fe.label, mfe.recorded_on FROM monthly_fixed_expenses mfe JOIN fixed_expenses fe ON mfe.fixed_expense_id = fe.id WHERE mfe.month_id = ?",
+        // Get monthly fixed expenses for this month
+        let monthly_fixed_expenses: Vec<(String, f64)> = sqlx::query_as(
+            "SELECT label, amount FROM monthly_fixed_expenses WHERE month_id = ?",
         )
         .bind(m.id)
         .fetch_all(&pool)
@@ -244,9 +244,9 @@ pub async fn export_json(
             items: item_exports,
             monthly_fixed_expenses: monthly_fixed_expenses
                 .into_iter()
-                .map(|(label, recorded_on)| MonthlyFixedExpenseExport {
+                .map(|(label, amount)| MonthlyFixedExpenseExport {
                     label,
-                    recorded_on,
+                    amount,
                 })
                 .collect(),
         });
@@ -492,16 +492,17 @@ pub async fn import_json(
 
         // Restore monthly fixed expenses
         for mfe in &month_data.monthly_fixed_expenses {
-            if let Some(&fe_id) = fixed_expense_map.get(&mfe.label) {
-                sqlx::query(
-                    "INSERT INTO monthly_fixed_expenses (fixed_expense_id, month_id, recorded_on) VALUES (?, ?, ?)",
-                )
-                .bind(fe_id)
-                .bind(month_id)
-                .bind(&mfe.recorded_on)
-                .execute(&mut *tx)
-                .await?;
-            }
+            // Try to find matching fixed_expense_id if it exists
+            let fe_id = fixed_expense_map.get(&mfe.label).copied();
+            sqlx::query(
+                "INSERT INTO monthly_fixed_expenses (fixed_expense_id, month_id, label, amount) VALUES (?, ?, ?, ?)",
+            )
+            .bind(fe_id)
+            .bind(month_id)
+            .bind(&mfe.label)
+            .bind(mfe.amount)
+            .execute(&mut *tx)
+            .await?;
         }
     }
 

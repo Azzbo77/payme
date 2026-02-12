@@ -244,17 +244,18 @@ pub async fn get_or_create_current_month(
                 .ok();
             }
 
-            let fixed_expenses: Vec<(String, f64)> =
-                sqlx::query_as("SELECT label, amount FROM fixed_expenses WHERE user_id = ?")
+            let fixed_expenses: Vec<(i64, String, f64)> =
+                sqlx::query_as("SELECT id, label, amount FROM fixed_expenses WHERE user_id = ?")
                     .bind(claims.sub)
                     .fetch_all(&pool)
                     .await?;
 
-            for (label, amount) in fixed_expenses {
+            for (expense_id, label, amount) in fixed_expenses {
                 sqlx::query(
-                    "INSERT INTO monthly_fixed_expenses (month_id, label, amount) VALUES (?, ?, ?)",
+                    "INSERT INTO monthly_fixed_expenses (month_id, fixed_expense_id, label, amount) VALUES (?, ?, ?, ?)",
                 )
                 .bind(id)
+                .bind(expense_id)
                 .bind(label)
                 .bind(amount)
                 .execute(&pool)
@@ -342,7 +343,7 @@ async fn get_month_summary(
             .await?;
 
     let fixed_expenses: Vec<MonthlyFixedExpense> = sqlx::query_as(
-        "SELECT id, month_id, label, amount FROM monthly_fixed_expenses WHERE month_id = ?",
+        "SELECT id, month_id, fixed_expense_id, label, amount FROM monthly_fixed_expenses WHERE month_id = ?",
     )
     .bind(month_id)
     .fetch_all(pool)
