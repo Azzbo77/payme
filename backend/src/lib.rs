@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod config;
 pub mod db;
 pub mod error;
@@ -17,7 +18,7 @@ use sqlx::SqlitePool;
 use tower_http::cors::{Any, CorsLayer};
 
 use handlers::{
-    auth, budget, export, fixed_expenses, health, income, items, monthly_data, months,
+    auth, backups, budget, export, fixed_expenses, health, income, items, monthly_data, months,
     savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
@@ -158,6 +159,10 @@ pub fn create_app(pool: SqlitePool) -> Router {
         )
         .route("/api/export/json", get(export::export_json))
         .route("/api/import/json", post(export::import_json))
+        .route("/api/backups/create", post(backups::create_backup))
+        .route("/api/backups/list", get(backups::list_backups))
+        .route("/api/backups/{filename}", delete(backups::delete_backup))
+        .route("/api/backups/{filename}/restore", post(backups::restore_backup))
         .route("/api/stocks/price", get(stocks::get_stock_price))
         .route("/api/stocks/exchange-rate", get(stocks::get_exchange_rate))
         .layer(Extension(rate_limiter))

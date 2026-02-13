@@ -193,6 +193,25 @@ export const api = {
     });
   },
 
+  backups: {
+    create: async (reason?: string) =>
+      request<{ filename: string; timestamp: string; size: string; size_bytes: number }>("/backups/create", {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    list: () =>
+      request<{ backups: Array<{ filename: string; timestamp: string; size: string; size_bytes: number }>; total_count: number }>("/backups/list"),
+    delete: (filename: string) =>
+      request<void>(`/backups/${filename}`, {
+        method: "DELETE",
+      }),
+    restore: (filename: string) =>
+      request<void>(`/backups/${filename}/restore`, {
+        method: "POST",
+        body: JSON.stringify({ confirm: true }),
+      }),
+  },
+
   savings: {
     get: () => request<{ savings: number; savings_goal: number }>("/savings"),
     update: (savings: number) =>
@@ -323,15 +342,28 @@ export interface UserExport {
   savings?: number;
   retirement_savings?: number;
   portfolio?: BreakdownItem[];
+  preferences?: {
+    recurring_wages_enabled: boolean;
+    current_account_enabled: boolean;
+    custom_savings_goals_enabled: boolean;
+    fixed_expenses_enabled: boolean;
+    stock_tracking_enabled: boolean;
+  };
   fixed_expenses: { label: string; amount: number }[];
   categories: { label: string; default_amount: number }[];
+  recurring_wages?: { label: string; amount: number; effective_from: string }[];
   months: {
     year: number;
     month: number;
     is_closed: boolean;
+    current_account_balance?: number;
+    monthly_savings_amount?: number;
+    monthly_savings_goal?: number;
+    monthly_retirement_savings_goal?: number;
     income_entries: { label: string; amount: number }[];
     budgets: { category_label: string; allocated_amount: number }[];
-    items: { category_label: string; description: string; amount: number; spent_on: string }[];
+    items: { category_label: string; description: string; amount: number; spent_on: string; savings_destination: string }[];
+    monthly_fixed_expenses?: { label: string; amount: number }[];
   }[];
 }
 

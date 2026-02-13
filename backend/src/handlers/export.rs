@@ -24,6 +24,8 @@ pub struct PreferencesExport {
     pub recurring_wages_enabled: bool,
     pub current_account_enabled: bool,
     pub custom_savings_goals_enabled: bool,
+    pub fixed_expenses_enabled: bool,
+    pub stock_tracking_enabled: bool,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -52,6 +54,8 @@ pub struct MonthExport {
     pub is_closed: bool,
     pub current_account_balance: Option<f64>,
     pub monthly_savings_amount: Option<f64>,
+    pub monthly_savings_goal: Option<f64>,
+    pub monthly_retirement_savings_goal: Option<f64>,
     pub income_entries: Vec<IncomeExport>,
     pub budgets: Vec<BudgetExport>,
     pub items: Vec<ItemExport>,
@@ -82,6 +86,7 @@ pub struct ItemExport {
     pub description: String,
     pub amount: f64,
     pub spent_on: String,
+    pub savings_destination: String,
 }
 
 #[utoipa::path(
@@ -114,18 +119,20 @@ pub async fn export_json(
             .unwrap_or(0.0);
 
     // Get user preferences
-    let preferences: (i32, i32, i32) = sqlx::query_as(
-        "SELECT recurring_wages_enabled, current_account_enabled, custom_savings_goals_enabled FROM users WHERE id = ?"
+    let preferences: (i32, i32, i32, i32, i32) = sqlx::query_as(
+        "SELECT recurring_wages_enabled, current_account_enabled, custom_savings_goals_enabled, fixed_expenses_enabled, COALESCE((SELECT 0), 0) as stock_tracking_enabled FROM users WHERE id = ?"
     )
     .bind(claims.sub)
     .fetch_one(&pool)
     .await
-    .unwrap_or((1, 1, 1));
+    .unwrap_or((1, 1, 1, 0, 0));
 
     let prefs = PreferencesExport {
         recurring_wages_enabled: preferences.0 != 0,
         current_account_enabled: preferences.1 != 0,
         custom_savings_goals_enabled: preferences.2 != 0,
+        fixed_expenses_enabled: preferences.3 != 0,
+        stock_tracking_enabled: preferences.4 != 0,
     };
 
     let fixed_expenses: Vec<FixedExpense> =
@@ -200,6 +207,22 @@ pub async fn export_json(
         .fetch_optional(&pool)
         .await?;
 
+        // Get monthly savings goal
+        let monthly_savings_goal: Option<f64> = sqlx::query_scalar(
+            "SELECT savings_goal FROM monthly_savings WHERE month_id = ?",
+        )
+        .bind(m.id)
+        .fetch_optional(&pool)
+        .await?;
+
+        // Get monthly retirement savings goal
+        let monthly_retirement_savings_goal: Option<f64> = sqlx::query_scalar(
+            "SELECT retirement_savings FROM monthly_savings WHERE month_id = ?",
+        )
+        .bind(m.id)
+        .fetch_optional(&pool)
+        .await?;
+
         // Get monthly fixed expenses for this month
         let monthly_fixed_expenses: Vec<(String, f64)> = sqlx::query_as(
             "SELECT label, amount FROM monthly_fixed_expenses WHERE month_id = ?",
@@ -217,6 +240,7 @@ pub async fn export_json(
                     description: item.description,
                     amount: item.amount,
                     spent_on: item.spent_on.to_string(),
+                    savings_destination: item.savings_destination,
                 });
             }
         }
@@ -227,6 +251,8 @@ pub async fn export_json(
             is_closed: m.is_closed,
             current_account_balance,
             monthly_savings_amount: monthly_savings,
+            monthly_savings_goal,
+            monthly_retirement_savings_goal,
             income_entries: income_entries
                 .into_iter()
                 .map(|i| IncomeExport {
@@ -373,11 +399,12 @@ pub async fn import_json(
     // Import preferences
     if let Some(prefs) = data.preferences {
         sqlx::query(
-            "UPDATE users SET recurring_wages_enabled = ?, current_account_enabled = ?, custom_savings_goals_enabled = ? WHERE id = ?"
+            "UPDATE users SET recurring_wages_enabled = ?, current_account_enabled = ?, custom_savings_goals_enabled = ?, fixed_expenses_enabled = ? WHERE id = ?"
         )
         .bind(if prefs.recurring_wages_enabled { 1 } else { 0 })
         .bind(if prefs.current_account_enabled { 1 } else { 0 })
         .bind(if prefs.custom_savings_goals_enabled { 1 } else { 0 })
+        .bind(if prefs.fixed_expenses_enabled { 1 } else { 0 })
         .bind(claims.sub)
         .execute(&mut *tx)
         .await?;
@@ -445,10 +472,12 @@ pub async fn import_json(
         }
 
         // Restore monthly savings
-        if let Some(savings) = month_data.monthly_savings_amount {
-            sqlx::query("INSERT INTO monthly_savings (month_id, savings) VALUES (?, ?)")
+        if month_data.monthly_savings_amount.is_some() || month_data.monthly_savings_goal.is_some() || month_data.monthly_retirement_savings_goal.is_some() {
+            sqlx::query("INSERT INTO monthly_savings (month_id, savings, savings_goal, retirement_savings) VALUES (?, ?, ?, ?)")
                 .bind(month_id)
-                .bind(savings)
+                .bind(month_data.monthly_savings_amount.unwrap_or(0.0))
+                .bind(month_data.monthly_savings_goal.unwrap_or(0.0))
+                .bind(month_data.monthly_retirement_savings_goal.unwrap_or(0.0))
                 .execute(&mut *tx)
                 .await?;
         }
@@ -478,13 +507,14 @@ pub async fn import_json(
         for item in &month_data.items {
             if let Some(&cat_id) = category_map.get(&item.category_label) {
                 sqlx::query(
-                    "INSERT INTO items (month_id, category_id, description, amount, spent_on) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO items (month_id, category_id, description, amount, spent_on, savings_destination) VALUES (?, ?, ?, ?, ?, ?)",
                 )
                 .bind(month_id)
                 .bind(cat_id)
                 .bind(&item.description)
                 .bind(item.amount)
                 .bind(&item.spent_on)
+                .bind(&item.savings_destination)
                 .execute(&mut *tx)
                 .await?;
             }

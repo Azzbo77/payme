@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod backups;
 pub mod budget;
 pub mod export;
 pub mod fixed_expenses;
