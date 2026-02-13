@@ -331,6 +331,12 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_data_month_id ON monthly_data(month_id)")
         .execute(pool)
         .await;
+    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_fixed_expenses_month_id ON monthly_fixed_expenses(month_id)")
+        .execute(pool)
+        .await;
+    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_fixed_expenses_fixed_expense_id ON monthly_fixed_expenses(fixed_expense_id)")
+        .execute(pool)
+        .await;
 
     Ok(())
 }
