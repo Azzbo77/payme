@@ -60,6 +60,16 @@ pub async fn create_monthly_fixed_expense(
         .await?
         .ok_or(PaymeError::NotFound)?;
 
+    // If fixed_expense_id is provided, verify it belongs to the current user
+    if let Some(template_id) = payload.fixed_expense_id {
+        let _: (i64,) = sqlx::query_as("SELECT id FROM fixed_expenses WHERE id = ? AND user_id = ?")
+            .bind(template_id)
+            .bind(claims.sub)
+            .fetch_optional(&pool)
+            .await?
+            .ok_or(PaymeError::NotFound)?;
+    }
+
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO monthly_fixed_expenses (month_id, fixed_expense_id, label, amount) VALUES (?, ?, ?, ?) RETURNING id",
     )
@@ -120,7 +130,18 @@ pub async fn update_monthly_fixed_expense(
     .await?
     .ok_or(PaymeError::NotFound)?;
 
-    let fixed_expense_id = payload.fixed_expense_id.or(existing.fixed_expense_id);
+    // If fixed_expense_id is provided in payload, verify it belongs to the current user
+    let fixed_expense_id = if let Some(template_id) = payload.fixed_expense_id {
+        let _: (i64,) = sqlx::query_as("SELECT id FROM fixed_expenses WHERE id = ? AND user_id = ?")
+            .bind(template_id)
+            .bind(claims.sub)
+            .fetch_optional(&pool)
+            .await?
+            .ok_or(PaymeError::NotFound)?;
+        Some(template_id)
+    } else {
+        payload.fixed_expense_id.or(existing.fixed_expense_id)
+    };
     let label = payload.label.unwrap_or(existing.label);
     let amount = payload.amount.unwrap_or(existing.amount);
 
