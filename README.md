@@ -119,6 +119,28 @@ docker run -d \
   payme
 ```
 
+### Deploying to Raspberry Pi (Optimized Workflow)
+
+For optimal build performance on Raspberry Pi, use the dedicated deployment scripts:
+
+**First time setup:**
+```bash
+./setup-wizard.sh
+```
+
+**Or use the interactive menu:**
+```bash
+./deploy-menu.sh
+```
+
+**Or manually build on a powerful machine and deploy to RPi:**
+```bash
+./build-local.sh                    # Build on your powerful machine
+./deploy.sh 192.168.1.100 pi        # Deploy to Raspberry Pi
+```
+
+This eliminates lengthy Raspberry Pi compile times (60-120 min) by building on a faster machine and transferring the pre-built image. Read [DEPLOYMENT.md](DEPLOYMENT.md) for detailed information.
+
 ### Data Persistence
 
 The SQLite database is stored in a Docker volume at `/data`. To backup:

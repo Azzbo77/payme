@@ -1,0 +1,27 @@
+# Use this on Raspberry Pi instead of docker-compose.yml
+# It references the pre-built image instead of building
+
+services:
+  payme:
+    image: payme:latest
+    container_name: payme
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - payme_data:/data
+    environment:
+      - DATABASE_URL=sqlite:/data/payme.db?mode=rwc
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
+      - PORT=3001
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-10}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  payme_data:
