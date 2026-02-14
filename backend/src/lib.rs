@@ -25,6 +25,7 @@ use handlers::{
     savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
+use middleware::request_id::request_id_middleware;
 use middleware::security::add_security_headers;
 use ratelimit::{IPRateLimiter, RateLimitManager, AUTH_RATE_LIMIT, STOCK_API_RATE_LIMIT};
 use std::sync::Arc;
@@ -240,6 +241,7 @@ pub fn create_app_with_config(pool: SqlitePool, config: Config) -> Router {
     Router::new()
         .merge(public_routes)
         .merge(protected_routes)
+        .layer(from_fn(request_id_middleware))
         .layer(cors)
         .layer(CompressionLayer::new())
         .layer(from_fn(add_security_headers))

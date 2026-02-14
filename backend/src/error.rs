@@ -10,6 +10,9 @@ use validator::ValidationErrors;
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub request_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<String>,
 }
 
@@ -75,7 +78,11 @@ impl IntoResponse for PaymeError {
 
         tracing::error!("{}: {:?}", error, details);
 
-        let error_response = ErrorResponse { error, details };
+        let error_response = ErrorResponse {
+            error,
+            request_id: None,
+            details,
+        };
 
         (status, Json(error_response)).into_response()
     }
