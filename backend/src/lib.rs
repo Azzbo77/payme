@@ -13,10 +13,11 @@ use axum::{
     middleware::from_fn,
     routing::{delete, get, post, put},
     Extension, Router,
+    http::HeaderValue,
 };
 use sqlx::SqlitePool;
 use tower_http::compression::CompressionLayer;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 use handlers::{
     auth, backups, budget, export, fixed_expenses, health, income, items, monthly_data, months,
@@ -25,10 +26,16 @@ use handlers::{
 use middleware::auth::auth_middleware;
 use middleware::security::add_security_headers;
 use ratelimit::{IPRateLimiter, RateLimitManager, AUTH_RATE_LIMIT, STOCK_API_RATE_LIMIT};
+use config::Config;
 use std::sync::Arc;
 
 /// Create the application router with all routes
 pub fn create_app(pool: SqlitePool) -> Router {
+    create_app_with_config(pool, Config::from_env())
+}
+
+/// Create the application router with custom configuration (used in tests and main)
+pub fn create_app_with_config(pool: SqlitePool, config: Config) -> Router {
     let ip_rate_limiter = Arc::new(IPRateLimiter::new(AUTH_RATE_LIMIT));
 
     let public_routes = Router::new()
@@ -209,11 +216,26 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .layer(Extension(rate_limiter))
         .layer(from_fn(auth_middleware));
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any)
-        .allow_credentials(false);
+    // Build CORS layer with configured origins
+    let mut cors = CorsLayer::new()
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+        ])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ])
+        .allow_credentials(true);
+    
+    // Add each configured origin
+    for origin_str in &config.cors_origins {
+        if let Ok(origin) = HeaderValue::from_str(origin_str) {
+            cors = cors.allow_origin(origin);
+        }
+    }
 
     Router::new()
         .merge(public_routes)

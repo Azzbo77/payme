@@ -5,11 +5,20 @@ pub struct Config {
     pub port: u16,
     pub finnhub_api_key: Option<String>,
     pub alphavantage_api_key: Option<String>,
+    pub cors_origins: Vec<String>,
 }
 
 impl Config {
     pub fn from_env() -> Self {
         dotenvy::dotenv().ok();
+        
+        // Parse CORS_ORIGINS - defaults to localhost for development
+        let cors_origins = env::var("CORS_ORIGINS")
+            .unwrap_or_else(|_| "http://localhost:3000".to_string())
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect();
+        
         Self {
             database_url: env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "sqlite:payme.db?mode=rwc".to_string()),
@@ -19,6 +28,7 @@ impl Config {
                 .unwrap_or(3001),
             finnhub_api_key: env::var("FINNHUB_API_KEY").ok(),
             alphavantage_api_key: env::var("ALPHAVANTAGE_API_KEY").ok(),
+            cors_origins,
         }
     }
 }
