@@ -1,5 +1,7 @@
 use std::env;
 
+const INSECURE_JWT_SECRET: &str = "change-me-in-production";
+
 pub struct Config {
     pub database_url: String,
     pub port: u16,
@@ -35,6 +37,39 @@ impl Config {
             alphavantage_api_key: env::var("ALPHAVANTAGE_API_KEY").ok(),
             cors_origins,
         }
+    }
+
+    /// Validate required environment variables
+    /// Called at startup to fail fast on missing configuration
+    pub fn validate(&self) -> Result<(), String> {
+        // Check JWT_SECRET is set and not the insecure default
+        let jwt_secret = env::var("JWT_SECRET")
+            .map_err(|_| "JWT_SECRET environment variable is required".to_string())?
+            .trim()
+            .to_string();
+
+        if jwt_secret.is_empty() {
+            return Err("JWT_SECRET cannot be empty".to_string());
+        }
+
+        if jwt_secret == INSECURE_JWT_SECRET {
+            return Err(
+                "JWT_SECRET is set to the insecure default value. Please set it to a random string."
+                    .to_string(),
+            );
+        }
+
+        // Check DATABASE_URL is set
+        if self.database_url.is_empty() {
+            return Err("DATABASE_URL cannot be empty".to_string());
+        }
+
+        // Warn if optional API keys are not set
+        if self.finnhub_api_key.is_none() && self.alphavantage_api_key.is_none() {
+            eprintln!("WARNING: Neither FINNHUB_API_KEY nor ALPHAVANTAGE_API_KEY is set. Stock price fetching will be limited.");
+        }
+
+        Ok(())
     }
 }
 

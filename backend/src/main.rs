@@ -14,6 +14,12 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let config = Config::from_env();
 
+    // Validate required environment variables - fail fast if misconfigured
+    if let Err(e) = config.validate() {
+        eprintln!("Configuration error: {}", e);
+        std::process::exit(1);
+    }
+
     // Initialize backup directory
     if let Err(e) = backup::init_backups_dir() {
         tracing::warn!("Failed to initialize backups directory: {}", e);
