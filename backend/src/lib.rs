@@ -15,6 +15,7 @@ use axum::{
     Extension, Router,
 };
 use sqlx::SqlitePool;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
 
 use handlers::{
@@ -182,6 +183,7 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .merge(public_routes)
         .merge(protected_routes)
         .layer(cors)
+        .layer(CompressionLayer::new())
         .layer(from_fn(add_security_headers))
         .with_state(pool)
 }
