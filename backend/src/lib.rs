@@ -22,6 +22,7 @@ use handlers::{
     savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
+use middleware::security::add_security_headers;
 use ratelimit::{RateLimitManager, IPRateLimiter, STOCK_API_RATE_LIMIT, AUTH_RATE_LIMIT};
 use std::sync::Arc;
 
@@ -181,5 +182,6 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .merge(public_routes)
         .merge(protected_routes)
         .layer(cors)
+        .layer(from_fn(add_security_headers))
         .with_state(pool)
 }
