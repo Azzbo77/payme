@@ -22,15 +22,18 @@ use handlers::{
     savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
-use ratelimit::{RateLimitManager, STOCK_API_RATE_LIMIT};
+use ratelimit::{RateLimitManager, IPRateLimiter, STOCK_API_RATE_LIMIT, AUTH_RATE_LIMIT};
 use std::sync::Arc;
 
 /// Create the application router with all routes
 pub fn create_app(pool: SqlitePool) -> Router {
+    let ip_rate_limiter = Arc::new(IPRateLimiter::new(AUTH_RATE_LIMIT));
+    
     let public_routes = Router::new()
         .route("/health", get(health::health_check))
         .route("/api/auth/register", post(auth::register))
-        .route("/api/auth/login", post(auth::login));
+        .route("/api/auth/login", post(auth::login))
+        .layer(Extension(ip_rate_limiter));
 
     let rate_limiter = Arc::new(RateLimitManager::new(STOCK_API_RATE_LIMIT));
 

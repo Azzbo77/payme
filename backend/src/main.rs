@@ -5,6 +5,7 @@ use payme::config::Config;
 use payme::create_app;
 use payme::db;
 use payme::openapi::ApiDoc;
+use std::net::SocketAddr;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -37,7 +38,10 @@ async fn main() {
         .await
         .expect("Failed to bind to address");
 
-    axum::serve(listener, app)
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
         .with_graceful_shutdown(shutdown_signal())
         .await
         .expect("Server error");

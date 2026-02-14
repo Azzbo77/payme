@@ -2,18 +2,25 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
     Argon2,
 };
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{
+    extract::{ConnectInfo, State},
+    response::IntoResponse,
+    Extension, Json,
+};
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use url::Url;
 use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::error::PaymeError;
 use crate::middleware::auth::Claims;
+use crate::ratelimit::IPRateLimiter;
 
 #[derive(Deserialize, ToSchema, Validate)]
 pub struct AuthRequest {
@@ -44,8 +51,17 @@ pub struct AuthResponse {
 )]
 pub async fn register(
     State(pool): State<SqlitePool>,
+    Extension(rate_limiter): Extension<Arc<IPRateLimiter>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     Json(payload): Json<AuthRequest>,
 ) -> Result<impl IntoResponse, PaymeError> {
+    // Check IP rate limit
+    let ip = addr.ip().to_string();
+    rate_limiter
+        .check_limit(&ip)
+        .await
+        .map_err(|_| PaymeError::RateLimited)?;
+
     payload.validate()?;
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
@@ -83,9 +99,18 @@ pub async fn register(
 )]
 pub async fn login(
     State(pool): State<SqlitePool>,
+    Extension(rate_limiter): Extension<Arc<IPRateLimiter>>,
+    ConnectInfo(addr): ConnectInfo<SocketAddr>,
     jar: CookieJar,
     Json(payload): Json<AuthRequest>,
 ) -> Result<impl IntoResponse, PaymeError> {
+    // Check IP rate limit
+    let ip = addr.ip().to_string();
+    rate_limiter
+        .check_limit(&ip)
+        .await
+        .map_err(|_| PaymeError::RateLimited)?;
+
     payload.validate()?;
     let user: (i64, String, String) =
         sqlx::query_as("SELECT id, username, password_hash FROM users WHERE username = ?")
