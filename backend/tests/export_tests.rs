@@ -36,7 +36,7 @@ async fn test_export_json() {
     response.assert_status_ok();
     let body: serde_json::Value = response.json();
 
-    assert_eq!(body["version"], 1);
+    assert_eq!(body["version"], 2);
     assert_eq!(body["fixed_expenses"].as_array().unwrap().len(), 1);
     assert_eq!(body["categories"].as_array().unwrap().len(), 1);
     assert_eq!(body["months"].as_array().unwrap().len(), 1);
@@ -52,13 +52,21 @@ async fn test_import_json() {
     let (server, _pool, _user_id, token) = setup_with_user().await;
 
     let import_data = json!({
-        "version": 1,
+        "version": 2,
         "savings": 10000.0,
         "retirement_savings": 25000.0,
+        "preferences": {
+            "recurring_wages_enabled": true,
+            "current_account_enabled": true,
+            "custom_savings_goals_enabled": true,
+            "fixed_expenses_enabled": true,
+            "stock_tracking_enabled": false
+        },
         "fixed_expenses": [
             {"label": "Rent", "amount": 1500.0},
             {"label": "Internet", "amount": 80.0}
         ],
+        "recurring_wages": [],
         "categories": [
             {"label": "Food", "default_amount": 500.0},
             {"label": "Transport", "default_amount": 200.0}
@@ -68,6 +76,10 @@ async fn test_import_json() {
                 "year": 2024,
                 "month": 6,
                 "is_closed": false,
+                "current_account_balance": null,
+                "monthly_savings_amount": null,
+                "monthly_savings_goal": null,
+                "monthly_retirement_savings_goal": null,
                 "income_entries": [
                     {"label": "Salary", "amount": 5000.0}
                 ],
@@ -75,8 +87,9 @@ async fn test_import_json() {
                     {"category_label": "Food", "allocated_amount": 600.0}
                 ],
                 "items": [
-                    {"category_label": "Food", "description": "Groceries", "amount": 150.0, "spent_on": "2024-06-15"}
-                ]
+                    {"category_label": "Food", "description": "Groceries", "amount": 150.0, "spent_on": "2024-06-15", "savings_destination": "savings"}
+                ],
+                "monthly_fixed_expenses": []
             }
         ]
     });
@@ -155,12 +168,20 @@ async fn test_import_json_replaces_existing() {
     create_test_category(&pool, user_id, "Old Category", 100.0).await;
 
     let import_data = json!({
-        "version": 1,
+        "version": 2,
         "savings": 0.0,
         "retirement_savings": 0.0,
+        "preferences": {
+            "recurring_wages_enabled": true,
+            "current_account_enabled": true,
+            "custom_savings_goals_enabled": true,
+            "fixed_expenses_enabled": true,
+            "stock_tracking_enabled": false
+        },
         "fixed_expenses": [
             {"label": "New Expense", "amount": 200.0}
         ],
+        "recurring_wages": [],
         "categories": [
             {"label": "New Category", "default_amount": 300.0}
         ],

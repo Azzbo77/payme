@@ -59,6 +59,10 @@ async fn run_migrations(pool: &SqlitePool) {
             savings REAL NOT NULL DEFAULT 0,
             savings_goal REAL NOT NULL DEFAULT 0,
             retirement_savings REAL NOT NULL DEFAULT 0,
+            recurring_wages_enabled INTEGER NOT NULL DEFAULT 1,
+            current_account_enabled INTEGER NOT NULL DEFAULT 1,
+            custom_savings_goals_enabled INTEGER NOT NULL DEFAULT 1,
+            fixed_expenses_enabled INTEGER NOT NULL DEFAULT 0,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
         "#,
@@ -186,6 +190,7 @@ async fn run_migrations(pool: &SqlitePool) {
         CREATE TABLE IF NOT EXISTS monthly_fixed_expenses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             month_id INTEGER NOT NULL,
+            fixed_expense_id INTEGER,
             label TEXT NOT NULL,
             amount REAL NOT NULL,
             FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
@@ -195,6 +200,37 @@ async fn run_migrations(pool: &SqlitePool) {
     .execute(pool)
     .await
     .expect("Failed to create monthly_fixed_expenses table");
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS recurring_wages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            label TEXT NOT NULL DEFAULT 'Wages',
+            effective_from TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to create recurring_wages table");
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS monthly_current_account (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            month_id INTEGER NOT NULL UNIQUE,
+            balance REAL NOT NULL DEFAULT 0,
+            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to create monthly_current_account table");
 
     sqlx::query(
         r#"
@@ -247,11 +283,7 @@ async fn run_migrations(pool: &SqlitePool) {
     )
     .execute(pool)
     .await;
-    let _ = sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_monthly_data_month_id ON monthly_data(month_id)",
-    )
-    .execute(pool)
-    .await;
+
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_fixed_expenses_month_id ON monthly_fixed_expenses(month_id)")
         .execute(pool)
         .await;
