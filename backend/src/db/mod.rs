@@ -1,8 +1,12 @@
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
 pub async fn create_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
+    create_pool_with_size(database_url, 10).await
+}
+
+pub async fn create_pool_with_size(database_url: &str, pool_size: u32) -> Result<SqlitePool, sqlx::Error> {
     let pool = SqlitePoolOptions::new()
-        .max_connections(10)
+        .max_connections(pool_size)
         .connect(database_url)
         .await?;
     Ok(pool)

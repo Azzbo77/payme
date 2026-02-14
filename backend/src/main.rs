@@ -19,7 +19,7 @@ async fn main() {
         tracing::warn!("Failed to initialize backups directory: {}", e);
     }
 
-    let pool = db::create_pool(&config.database_url)
+    let pool = db::create_pool_with_size(&config.database_url, config.db_pool_size)
         .await
         .expect("Failed to create database pool");
 

@@ -3,6 +3,7 @@ use std::env;
 pub struct Config {
     pub database_url: String,
     pub port: u16,
+    pub db_pool_size: u32,
     pub finnhub_api_key: Option<String>,
     pub alphavantage_api_key: Option<String>,
     pub cors_origins: Vec<String>,
@@ -26,6 +27,10 @@ impl Config {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3001),
+            db_pool_size: env::var("DB_POOL_SIZE")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(10),
             finnhub_api_key: env::var("FINNHUB_API_KEY").ok(),
             alphavantage_api_key: env::var("ALPHAVANTAGE_API_KEY").ok(),
             cors_origins,
