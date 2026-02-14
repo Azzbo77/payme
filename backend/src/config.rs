@@ -12,14 +12,14 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> Self {
         dotenvy::dotenv().ok();
-        
+
         // Parse CORS_ORIGINS - defaults to localhost for development
         let cors_origins = env::var("CORS_ORIGINS")
             .unwrap_or_else(|_| "http://localhost:3000".to_string())
             .split(',')
             .map(|s| s.trim().to_string())
             .collect();
-        
+
         Self {
             database_url: env::var("DATABASE_URL")
                 .unwrap_or_else(|_| "sqlite:payme.db?mode=rwc".to_string()),
@@ -62,8 +62,10 @@ mod tests {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3001),
+            db_pool_size: 10,
             finnhub_api_key: None,
             alphavantage_api_key: None,
+            cors_origins: vec!["http://localhost:3000".to_string()],
         };
 
         assert_eq!(config.database_url, "sqlite:payme.db?mode=rwc");
@@ -94,8 +96,10 @@ mod tests {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3001),
+            db_pool_size: 10,
             finnhub_api_key: None,
             alphavantage_api_key: None,
+            cors_origins: vec!["http://localhost:3000".to_string()],
         };
 
         assert_eq!(config.database_url, "sqlite:test.db");

@@ -10,15 +10,16 @@ pub mod pdf;
 pub mod ratelimit;
 
 use axum::{
+    http::HeaderValue,
     middleware::from_fn,
     routing::{delete, get, post, put},
     Extension, Router,
-    http::HeaderValue,
 };
 use sqlx::SqlitePool;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 
+use config::Config;
 use handlers::{
     auth, backups, budget, export, fixed_expenses, health, income, items, monthly_data, months,
     savings, stats, stocks,
@@ -26,7 +27,6 @@ use handlers::{
 use middleware::auth::auth_middleware;
 use middleware::security::add_security_headers;
 use ratelimit::{IPRateLimiter, RateLimitManager, AUTH_RATE_LIMIT, STOCK_API_RATE_LIMIT};
-use config::Config;
 use std::sync::Arc;
 
 /// Create the application router with all routes
@@ -229,7 +229,7 @@ pub fn create_app_with_config(pool: SqlitePool, config: Config) -> Router {
             axum::http::header::AUTHORIZATION,
         ])
         .allow_credentials(true);
-    
+
     // Add each configured origin
     for origin_str in &config.cors_origins {
         if let Ok(origin) = HeaderValue::from_str(origin_str) {
