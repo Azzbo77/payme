@@ -8,6 +8,7 @@ pub struct FixedExpense {
     pub user_id: i64,
     pub label: String,
     pub amount: f64,
+    pub auto_generate: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
@@ -71,6 +72,7 @@ pub struct Item {
     pub amount: f64,
     pub spent_on: NaiveDate,
     pub savings_destination: String,
+    pub recurring_item_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -108,6 +110,7 @@ pub struct ItemWithCategory {
     pub amount: f64,
     pub spent_on: NaiveDate,
     pub savings_destination: String,
+    pub recurring_item_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -145,6 +148,19 @@ pub struct RecurringWage {
     pub amount: f64,
     pub label: String,
     pub effective_from: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+pub struct RecurringItem {
+    pub id: i64,
+    pub user_id: i64,
+    pub category_id: i64,
+    pub description: String,
+    pub amount: f64,
+    pub day_of_month: i32,
+    pub savings_destination: String,
+    pub is_active: bool,
     pub created_at: String,
 }
 

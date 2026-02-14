@@ -78,6 +78,7 @@ async fn run_migrations(pool: &SqlitePool) {
             user_id INTEGER NOT NULL,
             label TEXT NOT NULL,
             amount REAL NOT NULL,
+            auto_generate INTEGER NOT NULL DEFAULT 0,
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
         "#,
@@ -161,6 +162,7 @@ async fn run_migrations(pool: &SqlitePool) {
             amount REAL NOT NULL,
             spent_on TEXT NOT NULL,
             savings_destination TEXT NOT NULL DEFAULT 'none',
+            recurring_item_id INTEGER,
             FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE,
             FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE CASCADE
         )
@@ -231,6 +233,27 @@ async fn run_migrations(pool: &SqlitePool) {
     .execute(pool)
     .await
     .expect("Failed to create monthly_current_account table");
+
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS recurring_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            amount REAL NOT NULL,
+            day_of_month INTEGER NOT NULL,
+            savings_destination TEXT NOT NULL DEFAULT 'none',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to create recurring_items table");
 
     sqlx::query(
         r#"

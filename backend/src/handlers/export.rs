@@ -32,6 +32,8 @@ pub struct PreferencesExport {
 pub struct FixedExpenseExport {
     pub label: String,
     pub amount: f64,
+    #[serde(default)]
+    pub auto_generate: bool,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -136,7 +138,7 @@ pub async fn export_json(
     };
 
     let fixed_expenses: Vec<FixedExpense> =
-        sqlx::query_as("SELECT id, user_id, label, amount FROM fixed_expenses WHERE user_id = ?")
+        sqlx::query_as("SELECT id, user_id, label, amount, auto_generate FROM fixed_expenses WHERE user_id = ?")
             .bind(claims.sub)
             .fetch_all(&pool)
             .await?;
@@ -185,7 +187,7 @@ pub async fn export_json(
         .await?;
 
         let items: Vec<Item> = sqlx::query_as(
-            "SELECT id, month_id, category_id, description, amount, spent_on, savings_destination FROM items WHERE month_id = ?",
+            "SELECT id, month_id, category_id, description, amount, spent_on, savings_destination, recurring_item_id FROM items WHERE month_id = ?",
         )
         .bind(m.id)
         .fetch_all(&pool)
@@ -280,6 +282,7 @@ pub async fn export_json(
             .map(|e| FixedExpenseExport {
                 label: e.label,
                 amount: e.amount,
+                auto_generate: e.auto_generate,
             })
             .collect(),
         recurring_wages: recurring_wages
@@ -406,11 +409,12 @@ pub async fn import_json(
         std::collections::HashMap::new();
     for expense in &data.fixed_expenses {
         let id: i64 = sqlx::query_scalar(
-            "INSERT INTO fixed_expenses (user_id, label, amount) VALUES (?, ?, ?) RETURNING id",
+            "INSERT INTO fixed_expenses (user_id, label, amount, auto_generate) VALUES (?, ?, ?, ?) RETURNING id",
         )
         .bind(claims.sub)
         .bind(&expense.label)
         .bind(expense.amount)
+        .bind(if expense.auto_generate { 1 } else { 0 })
         .fetch_one(&mut *tx)
         .await?;
         fixed_expense_map.insert(expense.label.clone(), id);

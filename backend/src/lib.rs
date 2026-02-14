@@ -22,7 +22,7 @@ use tower_http::cors::CorsLayer;
 use config::Config;
 use handlers::{
     auth, backups, budget, export, fixed_expenses, health, income, items, monthly_data, months,
-    savings, stats, stocks,
+    recurring_items, savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
 use middleware::request_id::request_id_middleware;
@@ -145,6 +145,10 @@ pub fn create_app_with_config(pool: SqlitePool, config: Config) -> Router {
             "/api/months/{month_id}/items/{id}",
             delete(items::delete_item),
         )
+        .route("/api/recurring-items", get(recurring_items::list_recurring_items))
+        .route("/api/recurring-items", post(recurring_items::create_recurring_item))
+        .route("/api/recurring-items/{id}", put(recurring_items::update_recurring_item))
+        .route("/api/recurring-items/{id}", delete(recurring_items::delete_recurring_item))
         .route("/api/recurring-wages", get(income::list_recurring_wages))
         .route("/api/recurring-wages", post(income::create_recurring_wage))
         .route(

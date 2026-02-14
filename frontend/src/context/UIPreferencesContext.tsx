@@ -14,6 +14,8 @@ interface UIPreferencesContextType {
   setCustomSavingsGoalsEnabled: (enabled: boolean) => void;
   fixedExpensesEnabled: boolean;
   setFixedExpensesEnabled: (enabled: boolean) => void;
+  recurringItemsEnabled: boolean;
+  setRecurringItemsEnabled: (enabled: boolean) => void;
   stockTrackingEnabled: boolean;
   setStockTrackingEnabled: (enabled: boolean) => void;
   portfolioEncryptionPassphrase: string;
@@ -116,6 +118,19 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     return false;
   });
 
+  const [recurringItemsEnabled, setRecurringItemsEnabledState] = useState<boolean>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const prefs = JSON.parse(stored);
+        return prefs.recurringItemsEnabled ?? false;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+
   const [portfolioEncryptionPassphrase, setPortfolioEncryptionPassphraseState] = useState<string>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -175,16 +190,18 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
       console.error("Failed to sync custom savings goals enabled preference:", e);
     });
   };
-
   const setFixedExpensesEnabled = (enabled: boolean) => {
     setFixedExpensesEnabledState(enabled);
     const stored = localStorage.getItem(STORAGE_KEY);
     const prefs = stored ? JSON.parse(stored) : {};
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, fixedExpensesEnabled: enabled }));
-    // Sync to server
-    api.fixedExpenses.setEnabled(enabled).catch((e) => {
-      console.error("Failed to sync fixed expenses enabled preference:", e);
-    });
+  };
+
+  const setRecurringItemsEnabled = (enabled: boolean) => {
+    setRecurringItemsEnabledState(enabled);
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const prefs = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, recurringItemsEnabled: enabled }));
   };
 
   const setStockTrackingEnabled = (enabled: boolean) => {
@@ -202,7 +219,7 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, fixedExpensesEnabled, setFixedExpensesEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase }}>
+    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, fixedExpensesEnabled, setFixedExpensesEnabled, recurringItemsEnabled, setRecurringItemsEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase }}>
       {children}
     </UIPreferencesContext.Provider>
   );

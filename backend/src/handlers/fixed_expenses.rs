@@ -18,6 +18,7 @@ pub struct CreateFixedExpense {
     pub label: String,
     #[validate(range(min = 0.0))]
     pub amount: f64,
+    pub auto_generate: Option<bool>,
 }
 
 #[derive(Deserialize, ToSchema, Validate)]
@@ -26,6 +27,7 @@ pub struct UpdateFixedExpense {
     pub label: Option<String>,
     #[validate(range(min = 0.0))]
     pub amount: Option<f64>,
+    pub auto_generate: Option<bool>,
 }
 
 #[utoipa::path(
@@ -44,7 +46,7 @@ pub async fn list_fixed_expenses(
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<Vec<FixedExpense>>, PaymeError> {
     let expenses: Vec<FixedExpense> =
-        sqlx::query_as("SELECT id, user_id, label, amount FROM fixed_expenses WHERE user_id = ?")
+        sqlx::query_as("SELECT id, user_id, label, amount, auto_generate FROM fixed_expenses WHERE user_id = ?")
             .bind(claims.sub)
             .fetch_all(&pool)
             .await?;
@@ -70,12 +72,14 @@ pub async fn create_fixed_expense(
     Json(payload): Json<CreateFixedExpense>,
 ) -> Result<Json<FixedExpense>, PaymeError> {
     payload.validate()?;
+    let auto_generate = payload.auto_generate.unwrap_or(false);
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO fixed_expenses (user_id, label, amount) VALUES (?, ?, ?) RETURNING id",
+        "INSERT INTO fixed_expenses (user_id, label, amount, auto_generate) VALUES (?, ?, ?, ?) RETURNING id",
     )
     .bind(claims.sub)
     .bind(&payload.label)
     .bind(payload.amount)
+    .bind(auto_generate as i32)
     .fetch_one(&pool)
     .await?;
 
@@ -84,6 +88,7 @@ pub async fn create_fixed_expense(
         user_id: claims.sub,
         label: payload.label,
         amount: payload.amount,
+        auto_generate,
     }))
 }
 
@@ -109,7 +114,7 @@ pub async fn update_fixed_expense(
 ) -> Result<Json<FixedExpense>, PaymeError> {
     payload.validate()?;
     let existing: FixedExpense = sqlx::query_as(
-        "SELECT id, user_id, label, amount FROM fixed_expenses WHERE id = ? AND user_id = ?",
+        "SELECT id, user_id, label, amount, auto_generate FROM fixed_expenses WHERE id = ? AND user_id = ?",
     )
     .bind(expense_id)
     .bind(claims.sub)
@@ -119,10 +124,12 @@ pub async fn update_fixed_expense(
 
     let label = payload.label.unwrap_or(existing.label);
     let amount = payload.amount.unwrap_or(existing.amount);
+    let auto_generate = payload.auto_generate.unwrap_or(existing.auto_generate);
 
-    sqlx::query("UPDATE fixed_expenses SET label = ?, amount = ? WHERE id = ?")
+    sqlx::query("UPDATE fixed_expenses SET label = ?, amount = ?, auto_generate = ? WHERE id = ?")
         .bind(&label)
         .bind(amount)
+        .bind(auto_generate as i32)
         .bind(expense_id)
         .execute(&pool)
         .await?;
@@ -132,6 +139,7 @@ pub async fn update_fixed_expense(
         user_id: claims.sub,
         label,
         amount,
+        auto_generate,
     }))
 }
 

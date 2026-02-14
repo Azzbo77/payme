@@ -4,6 +4,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Modal } from "../components/ui/Modal";
+import { RecurringItemsModal } from "../components/RecurringItems";
 import { useAuth } from "../context/AuthContext";
 import { useCurrency, SUPPORTED_CURRENCIES } from "../context/CurrencyContext";
 import { useUIPreferences } from "../context/UIPreferencesContext";
@@ -18,7 +19,7 @@ interface SettingsProps {
 export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const { user, logout, updateUsername } = useAuth();
   const { currency, setCurrency, formatCurrency } = useCurrency();
-  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, fixedExpensesEnabled, setFixedExpensesEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase } = useUIPreferences();
+  const { transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, fixedExpensesEnabled, setFixedExpensesEnabled, recurringItemsEnabled, setRecurringItemsEnabled, stockTrackingEnabled, setStockTrackingEnabled, portfolioEncryptionPassphrase, setPortfolioEncryptionPassphrase } = useUIPreferences();
   const [newUsername, setNewUsername] = useState(user?.username || "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -66,8 +67,13 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [fixedExpensesLoaded, setFixedExpensesLoaded] = useState(false);
   const [expenseLabel, setExpenseLabel] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseAutoGenerate, setExpenseAutoGenerate] = useState(false);
   const [expenseLoading, setExpenseLoading] = useState(false);
   const [expenseError, setExpenseError] = useState("");
+
+  // Recurring items state
+  const [showRecurringItemsManageModal, setShowRecurringItemsManageModal] = useState(false);
+  const [showRecurringItemsInfoModal, setShowRecurringItemsInfoModal] = useState(false);
 
   const loadRecurringWages = async () => {
     try {
@@ -163,12 +169,14 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
       await api.fixedExpenses.create({
         label: expenseLabel,
         amount: parseFloat(expenseAmount),
+        auto_generate: expenseAutoGenerate,
       });
       // Reload expenses
       await loadFixedExpenses();
       // Reset form
       setExpenseLabel("");
       setExpenseAmount("");
+      setExpenseAutoGenerate(false);
       setExpenseError("");
     } catch {
       setExpenseError("Failed to add fixed expense");
@@ -294,10 +302,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
         </h1>
 
         <div className="space-y-6 sm:space-y-8">
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Currency
-            </h2>
+            </h3>
             <div className="space-y-4">
               <Select
                 label="Display Currency"
@@ -322,10 +330,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Transferred Items
-            </h2>
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -363,10 +371,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Retirement Savings Breakdown
-            </h2>
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -404,10 +412,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Current Account Balance
-            </h2>
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -445,10 +453,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Stock & Crypto Tracking
-            </h2>
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -486,10 +494,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Portfolio Encryption
-            </h2>
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -526,10 +534,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Custom Savings Goals
-            </h2>
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -567,10 +575,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Recurring Wages
-            </h2>
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -613,15 +621,15 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Fixed Expense Templates
-            </h2>
+            </h3>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="text-sm font-medium text-charcoal-600 dark:text-charcoal-300">
                       Create Reusable Templates
                     </label>
                     <button
@@ -633,12 +641,12 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                     </button>
                   </div>
                   <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
-                    Create reusable expense templates that you can quickly add to any month (e.g., Rent, Utilities, Insurance). You can select and adjust them when setting up each month.
+                    Create reusable expense templates that you can quickly add to any month (e.g., Rent, Utilities, Insurance). Optional auto-generation creates them automatically each month.
                   </p>
                 </div>
                 <button
                   onClick={() => setFixedExpensesEnabled(!fixedExpensesEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 flex-shrink-0 ${
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
                     fixedExpensesEnabled
                       ? "bg-sage-600 dark:bg-sage-500"
                       : "bg-charcoal-300 dark:bg-charcoal-600"
@@ -651,18 +659,60 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                   />
                 </button>
               </div>
-              {fixedExpensesEnabled && (
-                <Button onClick={openFixedExpensesModal} className="w-full">
-                  Manage Fixed Expenses
-                </Button>
-              )}
+              <Button onClick={openFixedExpensesModal} className="w-full">
+                Manage Fixed Expenses
+              </Button>
             </div>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
+              Recurring Transaction Templates
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <label className="text-sm font-medium text-charcoal-600 dark:text-charcoal-300">
+                      Set Up Recurring Templates
+                    </label>
+                    <button
+                      onClick={() => setShowRecurringItemsInfoModal(true)}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How to use recurring templates"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Create recurring transaction templates that automatically generate each month (rent, subscriptions, etc.). Optional auto-generation creates them automatically on a selected day.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setRecurringItemsEnabled(!recurringItemsEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${
+                    recurringItemsEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      recurringItemsEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              <Button onClick={() => setShowRecurringItemsManageModal(true)} className="w-full">
+                Manage Recurring Items
+              </Button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Change Username
-            </h2>
+            </h3>
             <form onSubmit={handleChangeUsername} className="space-y-4">
               <Input
                 label="New Username"
@@ -684,10 +734,10 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </form>
           </div>
 
-          <div className="bg-sand-100 dark:bg-charcoal-900 p-4 sm:p-6 border border-sand-200 dark:border-charcoal-800">
-            <h2 className="text-base sm:text-lg font-medium mb-4 text-charcoal-800 dark:text-sand-100">
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
               Change Password
-            </h2>
+            </h3>
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-charcoal-700 dark:text-sand-200 mb-1">
@@ -1119,6 +1169,11 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                       <p className="font-medium text-charcoal-700 dark:text-sand-200">
                         {expense.label}: {formatCurrency(expense.amount)}
                       </p>
+                      {expense.auto_generate && (
+                        <p className="text-xs text-sage-600 dark:text-sage-400">
+                          ✓ Auto-generates each month
+                        </p>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -1155,6 +1210,19 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
               placeholder="0.00"
               disabled={expenseLoading}
             />
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="auto-generate-check"
+                checked={expenseAutoGenerate}
+                onChange={(e) => setExpenseAutoGenerate(e.target.checked)}
+                disabled={expenseLoading}
+                className="w-4 h-4 rounded border-sand-300 dark:border-charcoal-600 dark:bg-charcoal-800 cursor-pointer"
+              />
+              <label htmlFor="auto-generate-check" className="text-sm text-charcoal-700 dark:text-sand-300 cursor-pointer">
+                Auto-generate each month
+              </label>
+            </div>
             {expenseError && (
               <p className="text-sm text-terracotta-600">{expenseError}</p>
             )}
@@ -1169,6 +1237,7 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
                   setShowFixedExpensesManageModal(false);
                   setExpenseLabel("");
                   setExpenseAmount("");
+                  setExpenseAutoGenerate(false);
                   setExpenseError("");
                 }}
                 disabled={expenseLoading}
@@ -1179,6 +1248,14 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
             </div>
           </form>
         </div>
+      </Modal>
+
+      <Modal 
+        isOpen={showRecurringItemsManageModal} 
+        onClose={() => setShowRecurringItemsManageModal(false)}
+        title="Manage Recurring Transaction Templates"
+      >
+        <RecurringItemsModal onClose={() => setShowRecurringItemsManageModal(false)} />
       </Modal>
 
       <Modal isOpen={showCurrentAccountInfoModal} onClose={() => setShowCurrentAccountInfoModal(false)}>
@@ -1288,6 +1365,54 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
           <div className="flex gap-2 pt-4">
             <Button
               onClick={() => setShowCustomSavingsGoalsInfoModal(false)}
+              className="w-full"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showRecurringItemsInfoModal} onClose={() => setShowRecurringItemsInfoModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Use Recurring Transaction Templates
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What are recurring templates?</p>
+              <p>Recurring templates are transaction templates that automatically generate items each month on a specific day (e.g., Rent on the 1st, Salary on the 25th). They match your Fixed Expenses in flexibility but auto-generate without manual selection.</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">How it works:</p>
+              <ol className="list-decimal list-inside space-y-1 text-xs">
+                <li><span className="font-medium">Create templates:</span> Go to "Manage Recurring Items" and add your recurring transactions</li>
+                <li><span className="font-medium">Set the day:</span> Pick which day of the month it should appear (1-31)</li>
+                <li><span className="font-medium">Enable auto-generation:</span> Toggle "Auto-generate each month" to create items automatically</li>
+                <li><span className="font-medium">Monthly view:</span> See recurring items in the month view, grouped with other transactions</li>
+                <li><span className="font-medium">Manage anytime:</span> Add or remove specific instances from any month using the settings icon</li>
+              </ol>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Auto-generation vs manual:</p>
+              <ul className="space-y-1">
+                <li><span className="font-medium">Auto-generate enabled:</span> Items are created automatically when you create a new month on that day</li>
+                <li><span className="font-medium">Auto-generate disabled:</span> You can manually add them from the month view using the selector</li>
+              </ul>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Example workflow:</p>
+              <p className="text-xs bg-charcoal-100 dark:bg-charcoal-800 p-2 rounded">Templates: Salary (day 25, auto-generate), Rent (day 1, auto-generate), Groceries (day 15, no auto-generate) → Create February → Salary & Rent auto-appear → Manually add Groceries if needed</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowRecurringItemsInfoModal(false)}
               className="w-full"
             >
               Got it

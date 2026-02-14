@@ -11,6 +11,7 @@ import { TransfersCard } from "../components/TransfersCard";
 import { VarianceModal } from "../components/VarianceModal";
 import { IncomeSection } from "../components/IncomeSection";
 import { FixedExpenses } from "../components/FixedExpenses";
+import { RecurringItemsInMonth } from "../components/RecurringItemsInMonth";
 import { BudgetSection } from "../components/BudgetSection";
 import { ItemsSection } from "../components/ItemsSection";
 import { Stats } from "../components/Stats";
@@ -26,7 +27,7 @@ interface DashboardProps {
 
 export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
   const [showVarianceModal, setShowVarianceModal] = useState(false);
-  const { transfersEnabled, currentAccountEnabled, customSavingsGoalsEnabled } = useUIPreferences();
+  const { transfersEnabled, currentAccountEnabled, customSavingsGoalsEnabled, recurringItemsEnabled } = useUIPreferences();
   const {
     summary,
     currentAccount,
@@ -142,6 +143,17 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
             />
           </div>
         </ErrorBoundary>
+
+        {recurringItemsEnabled && (
+          <ErrorBoundary section="Recurring Items">
+            <RecurringItemsInMonth
+              monthId={summary.month.id}
+              items={summary.items}
+              isReadOnly={isReadOnly}
+              onUpdate={refresh}
+            />
+          </ErrorBoundary>
+        )}
 
         <ErrorBoundary section="Items">
           <ItemsSection

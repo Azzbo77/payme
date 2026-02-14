@@ -60,7 +60,7 @@ pub async fn list_items(
 
     let items: Vec<ItemWithCategory> = sqlx::query_as(
         r#"
-        SELECT i.id, i.month_id, i.category_id, bc.label as category_label, i.description, i.amount, i.spent_on, i.savings_destination
+        SELECT i.id, i.month_id, i.category_id, bc.label as category_label, i.description, i.amount, i.spent_on, i.savings_destination, i.recurring_item_id
         FROM items i
         JOIN budget_categories bc ON i.category_id = bc.id
         WHERE i.month_id = ?
@@ -143,6 +143,7 @@ pub async fn create_item(
         amount: payload.amount,
         spent_on: payload.spent_on,
         savings_destination: payload.savings_destination,
+        recurring_item_id: None,
     }))
 }
 
@@ -173,7 +174,7 @@ pub async fn update_item(
     verify_month_not_closed(&pool, claims.sub, month_id).await?;
 
     let existing: Item = sqlx::query_as(
-        "SELECT id, month_id, category_id, description, amount, spent_on, savings_destination FROM items WHERE id = ? AND month_id = ?",
+        "SELECT id, month_id, category_id, description, amount, spent_on, savings_destination, recurring_item_id FROM items WHERE id = ? AND month_id = ?",
     )
     .bind(item_id)
     .bind(month_id)
@@ -266,6 +267,7 @@ pub async fn update_item(
         amount,
         spent_on,
         savings_destination,
+        recurring_item_id: existing.recurring_item_id,
     }))
 }
 
@@ -292,7 +294,7 @@ pub async fn delete_item(
     verify_month_not_closed(&pool, claims.sub, month_id).await?;
 
     let item: Item = sqlx::query_as(
-        "SELECT id, month_id, category_id, description, amount, spent_on, savings_destination FROM items WHERE id = ? AND month_id = ?",
+        "SELECT id, month_id, category_id, description, amount, spent_on, savings_destination, recurring_item_id FROM items WHERE id = ? AND month_id = ?",
     )
     .bind(item_id)
     .bind(month_id)

@@ -117,7 +117,7 @@ pub async fn create_month(
             }
 
             let fixed_expenses: Vec<(String, f64)> =
-                sqlx::query_as("SELECT label, amount FROM fixed_expenses WHERE user_id = ?")
+                sqlx::query_as("SELECT label, amount FROM fixed_expenses WHERE user_id = ? AND auto_generate = 1")
                     .bind(claims.sub)
                     .fetch_all(&pool)
                     .await?;
@@ -168,6 +168,9 @@ pub async fn create_month(
             .bind(savings_goal)
             .execute(&pool)
             .await?;
+
+            // Generate recurring items for this month
+            let _ = crate::handlers::recurring_items::generate_items_for_month(&pool, id).await;
 
             Month {
                 id,
@@ -243,7 +246,7 @@ pub async fn get_or_create_current_month(
             }
 
             let fixed_expenses: Vec<(i64, String, f64)> =
-                sqlx::query_as("SELECT id, label, amount FROM fixed_expenses WHERE user_id = ?")
+                sqlx::query_as("SELECT id, label, amount FROM fixed_expenses WHERE user_id = ? AND auto_generate = 1")
                     .bind(claims.sub)
                     .fetch_all(&pool)
                     .await?;
@@ -276,6 +279,9 @@ pub async fn get_or_create_current_month(
             .bind(savings_goal)
             .execute(&pool)
             .await?;
+
+            // Generate recurring items for this month
+            let _ = crate::handlers::recurring_items::generate_items_for_month(&pool, id).await;
 
             Month {
                 id,
@@ -382,7 +388,7 @@ async fn get_month_summary(
 
     let items: Vec<ItemWithCategory> = sqlx::query_as(
         r#"
-        SELECT i.id, i.month_id, i.category_id, bc.label as category_label, i.description, i.amount, i.spent_on, i.savings_destination
+        SELECT i.id, i.month_id, i.category_id, bc.label as category_label, i.description, i.amount, i.spent_on, i.savings_destination, i.recurring_item_id
         FROM items i
         JOIN budget_categories bc ON i.category_id = bc.id
         WHERE i.month_id = ?

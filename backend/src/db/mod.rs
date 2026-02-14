@@ -267,6 +267,44 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS recurring_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            category_id INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            amount REAL NOT NULL,
+            day_of_month INTEGER NOT NULL,
+            savings_destination TEXT NOT NULL DEFAULT 'none',
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    let _ = sqlx::query(
+        "ALTER TABLE fixed_expenses ADD COLUMN auto_generate INTEGER NOT NULL DEFAULT 0",
+    )
+    .execute(pool)
+    .await;
+
+    let _ = sqlx::query(
+        "ALTER TABLE items ADD COLUMN recurring_item_id INTEGER",
+    )
+    .execute(pool)
+    .await;
+
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_items_recurring_item_id ON items(recurring_item_id)",
+    )
+    .execute(pool)
+    .await;
+
     // Migration: Backfill existing months with current fixed expenses and savings
     // This ensures existing data is preserved when upgrading
     let existing_months: Vec<(i64, i64)> = sqlx::query_as(

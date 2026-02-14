@@ -96,12 +96,12 @@ export const api = {
 
   fixedExpenses: {
     list: () => request<FixedExpense[]>("/fixed-expenses"),
-    create: (data: { label: string; amount: number }) =>
+    create: (data: { label: string; amount: number; auto_generate?: boolean }) =>
       request<FixedExpense>("/fixed-expenses", {
         method: "POST",
         body: JSON.stringify(data),
       }),
-    update: (id: number, data: { label?: string; amount?: number }) =>
+    update: (id: number, data: { label?: string; amount?: number; auto_generate?: boolean }) =>
       request<FixedExpense>(`/fixed-expenses/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
@@ -115,6 +115,38 @@ export const api = {
         method: "PUT",
         body: JSON.stringify({ enabled }),
       }),
+  },
+
+  recurringItems: {
+    list: () => request<RecurringItem[]>("/recurring-items"),
+    create: (data: {
+      category_id: number;
+      description: string;
+      amount: number;
+      day_of_month: number;
+      savings_destination?: string;
+    }) =>
+      request<RecurringItem>("/recurring-items", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (
+      id: number,
+      data: {
+        category_id?: number;
+        description?: string;
+        amount?: number;
+        day_of_month?: number;
+        savings_destination?: string;
+        is_active?: boolean;
+      }
+    ) =>
+      request<RecurringItem>(`/recurring-items/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number) =>
+      request<void>(`/recurring-items/${id}`, { method: "DELETE" }),
   },
 
   categories: {
@@ -401,6 +433,7 @@ export interface FixedExpense {
   user_id: number;
   label: string;
   amount: number;
+  auto_generate: boolean;
 }
 
 export interface MonthlyFixedExpense {
@@ -449,6 +482,7 @@ export interface Item {
   amount: number;
   spent_on: string;
   savings_destination: string;
+  recurring_item_id?: number | null;
 }
 
 export interface ItemWithCategory extends Item {
@@ -508,6 +542,18 @@ export interface RecurringWage {
   amount: number;
   label: string;
   effective_from: string;
+  created_at: string;
+}
+
+export interface RecurringItem {
+  id: number;
+  user_id: number;
+  category_id: number;
+  description: string;
+  amount: number;
+  day_of_month: number;
+  savings_destination: string;
+  is_active: boolean;
   created_at: string;
 }
 

@@ -224,7 +224,7 @@ pub async fn get_available_fixed_expenses(
         .ok_or(PaymeError::NotFound)?;
 
     let expenses: Vec<crate::models::FixedExpense> =
-        sqlx::query_as("SELECT id, user_id, label, amount FROM fixed_expenses WHERE user_id = ?")
+        sqlx::query_as("SELECT id, user_id, label, amount, auto_generate FROM fixed_expenses WHERE user_id = ?")
             .bind(claims.sub)
             .fetch_all(&pool)
             .await?;
