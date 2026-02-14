@@ -14,6 +14,7 @@ RUN npm run build
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     libsqlite3-0 \
     && rm -rf /var/lib/apt/lists/*
 
