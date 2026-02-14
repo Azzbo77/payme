@@ -10,6 +10,7 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
+use std::net::SocketAddr;
 use std::sync::Once;
 
 use axum::http::{HeaderName, HeaderValue};
@@ -35,7 +36,7 @@ pub struct Claims {
 /// Create an in-memory SQLite pool and run migrations
 pub async fn create_test_pool() -> SqlitePool {
     init_test_env();
-    
+
     let pool = SqlitePool::connect(":memory:")
         .await
         .expect("Failed to create in-memory database");
@@ -45,7 +46,7 @@ pub async fn create_test_pool() -> SqlitePool {
 }
 
 /// Run database migrations (copied from db/mod.rs to avoid circular deps)
-/// 
+///
 /// NOTE: Keep this in sync with the production migrations in backend/src/db/mod.rs
 /// Both should have identical table schemas and ALTER TABLE statements
 async fn run_migrations(pool: &SqlitePool) {
@@ -218,27 +219,39 @@ async fn run_migrations(pool: &SqlitePool) {
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_items_category_id ON items(category_id)")
         .execute(pool)
         .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_items_month_category ON items(month_id, category_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id ON budget_categories(user_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_fixed_expenses_user_id ON fixed_expenses(user_id)")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_items_month_category ON items(month_id, category_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id ON budget_categories(user_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_fixed_expenses_user_id ON fixed_expenses(user_id)",
+    )
+    .execute(pool)
+    .await;
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_months_user_id ON months(user_id)")
         .execute(pool)
         .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_income_entries_month_id ON income_entries(month_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_budgets_month_id ON monthly_budgets(month_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_data_month_id ON monthly_data(month_id)")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_income_entries_month_id ON income_entries(month_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_monthly_budgets_month_id ON monthly_budgets(month_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_monthly_data_month_id ON monthly_data(month_id)",
+    )
+    .execute(pool)
+    .await;
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_fixed_expenses_month_id ON monthly_fixed_expenses(month_id)")
         .execute(pool)
         .await;
@@ -268,8 +281,7 @@ pub async fn create_test_user(pool: &SqlitePool, username: &str, password: &str)
 
 /// Generate a JWT token for a user
 pub fn generate_token(user_id: i64, username: &str) -> String {
-    let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "test-secret-key".to_string());
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "test-secret-key".to_string());
 
     let claims = Claims {
         sub: user_id,
@@ -287,8 +299,7 @@ pub fn generate_token(user_id: i64, username: &str) -> String {
 
 /// Generate an expired JWT token for testing
 pub fn generate_expired_token(user_id: i64, username: &str) -> String {
-    let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "test-secret-key".to_string());
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "test-secret-key".to_string());
 
     let claims = Claims {
         sub: user_id,
@@ -428,5 +439,5 @@ pub fn auth_value(token: &str) -> HeaderValue {
 
 /// Create a test server from a router
 pub fn create_test_server(app: Router) -> TestServer {
-    TestServer::new(app).unwrap()
+    TestServer::new(app.into_make_service_with_connect_info::<SocketAddr>()).unwrap()
 }

@@ -30,8 +30,7 @@ pub async fn auth_middleware(
         })
         .ok_or(PaymeError::Unauthorized)?;
 
-    let secret = std::env::var("JWT_SECRET")
-        .expect("JWT_SECRET environment variable is required");
+    let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET environment variable is required");
 
     let token_data = decode::<Claims>(
         &token,

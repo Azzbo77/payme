@@ -62,12 +62,13 @@ pub async fn create_monthly_fixed_expense(
 
     // If fixed_expense_id is provided, verify it belongs to the current user
     if let Some(template_id) = payload.fixed_expense_id {
-        let _: (i64,) = sqlx::query_as("SELECT id FROM fixed_expenses WHERE id = ? AND user_id = ?")
-            .bind(template_id)
-            .bind(claims.sub)
-            .fetch_optional(&pool)
-            .await?
-            .ok_or(PaymeError::NotFound)?;
+        let _: (i64,) =
+            sqlx::query_as("SELECT id FROM fixed_expenses WHERE id = ? AND user_id = ?")
+                .bind(template_id)
+                .bind(claims.sub)
+                .fetch_optional(&pool)
+                .await?
+                .ok_or(PaymeError::NotFound)?;
     }
 
     let id: i64 = sqlx::query_scalar(
@@ -132,12 +133,13 @@ pub async fn update_monthly_fixed_expense(
 
     // If fixed_expense_id is provided in payload, verify it belongs to the current user
     let fixed_expense_id = if let Some(template_id) = payload.fixed_expense_id {
-        let _: (i64,) = sqlx::query_as("SELECT id FROM fixed_expenses WHERE id = ? AND user_id = ?")
-            .bind(template_id)
-            .bind(claims.sub)
-            .fetch_optional(&pool)
-            .await?
-            .ok_or(PaymeError::NotFound)?;
+        let _: (i64,) =
+            sqlx::query_as("SELECT id FROM fixed_expenses WHERE id = ? AND user_id = ?")
+                .bind(template_id)
+                .bind(claims.sub)
+                .fetch_optional(&pool)
+                .await?
+                .ok_or(PaymeError::NotFound)?;
         Some(template_id)
     } else {
         payload.fixed_expense_id.or(existing.fixed_expense_id)
@@ -478,7 +480,7 @@ pub async fn update_monthly_current_account(
     .fetch_optional(&pool)
     .await?;
 
-    if let Some(_) = existing {
+    if existing.is_some() {
         sqlx::query("UPDATE monthly_current_account SET balance = ? WHERE month_id = ?")
             .bind(payload.balance)
             .bind(month_id)
@@ -508,7 +510,6 @@ pub struct TransferRequest {
     pub amount: f64,
     pub destination: String, // "savings" or "retirement_savings"
 }
-
 
 #[utoipa::path(
     post,
@@ -548,12 +549,11 @@ pub async fn transfer_from_current_account(
         .ok_or(PaymeError::NotFound)?;
 
     // Get current account balance
-    let current_balance: Option<f64> = sqlx::query_scalar(
-        "SELECT balance FROM monthly_current_account WHERE month_id = ?",
-    )
-    .bind(month_id)
-    .fetch_optional(&pool)
-    .await?;
+    let current_balance: Option<f64> =
+        sqlx::query_scalar("SELECT balance FROM monthly_current_account WHERE month_id = ?")
+            .bind(month_id)
+            .fetch_optional(&pool)
+            .await?;
 
     let current_balance = current_balance.unwrap_or(0.0);
 
@@ -565,7 +565,7 @@ pub async fn transfer_from_current_account(
 
     // Get first category for transfer item
     let category_id: i64 = sqlx::query_scalar(
-        "SELECT id FROM budget_categories WHERE user_id = ? ORDER BY id LIMIT 1"
+        "SELECT id FROM budget_categories WHERE user_id = ? ORDER BY id LIMIT 1",
     )
     .bind(claims.sub)
     .fetch_optional(&pool)
@@ -601,7 +601,7 @@ pub async fn transfer_from_current_account(
             .bind(month_id)
             .execute(&pool)
             .await?;
-        
+
         // Update user-level savings
         sqlx::query("UPDATE users SET savings = savings + ? WHERE id = ?")
             .bind(payload.amount)
@@ -614,7 +614,7 @@ pub async fn transfer_from_current_account(
             .bind(month_id)
             .execute(&pool)
             .await?;
-        
+
         // Update user-level retirement savings
         sqlx::query("UPDATE users SET retirement_savings = retirement_savings + ? WHERE id = ?")
             .bind(payload.amount)
@@ -644,12 +644,10 @@ pub async fn get_current_account_enabled(
     State(pool): State<SqlitePool>,
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<serde_json::Value>, PaymeError> {
-    let enabled: i64 = sqlx::query_scalar(
-        "SELECT current_account_enabled FROM users WHERE id = ?",
-    )
-    .bind(claims.sub)
-    .fetch_one(&pool)
-    .await?;
+    let enabled: i64 = sqlx::query_scalar("SELECT current_account_enabled FROM users WHERE id = ?")
+        .bind(claims.sub)
+        .fetch_one(&pool)
+        .await?;
 
     Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
 }
@@ -702,12 +700,11 @@ pub async fn get_custom_savings_goals_enabled(
     State(pool): State<SqlitePool>,
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<serde_json::Value>, PaymeError> {
-    let enabled: i64 = sqlx::query_scalar(
-        "SELECT custom_savings_goals_enabled FROM users WHERE id = ?",
-    )
-    .bind(claims.sub)
-    .fetch_one(&pool)
-    .await?;
+    let enabled: i64 =
+        sqlx::query_scalar("SELECT custom_savings_goals_enabled FROM users WHERE id = ?")
+            .bind(claims.sub)
+            .fetch_one(&pool)
+            .await?;
 
     Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
 }
@@ -760,12 +757,11 @@ pub async fn get_fixed_expenses_enabled(
     State(pool): State<SqlitePool>,
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<serde_json::Value>, PaymeError> {
-    let (enabled,): (i32,) = sqlx::query_as(
-        "SELECT fixed_expenses_enabled FROM users WHERE id = ?",
-    )
-    .bind(claims.sub)
-    .fetch_one(&pool)
-    .await?;
+    let (enabled,): (i32,) =
+        sqlx::query_as("SELECT fixed_expenses_enabled FROM users WHERE id = ?")
+            .bind(claims.sub)
+            .fetch_one(&pool)
+            .await?;
 
     Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
 }

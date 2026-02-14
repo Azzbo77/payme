@@ -1,14 +1,7 @@
-use axum::{
-    extract::Request,
-    middleware::Next,
-    response::{IntoResponse, Response},
-};
+use axum::{extract::Request, middleware::Next, response::Response};
 
 /// Middleware that adds security headers to all responses
-pub async fn add_security_headers(
-    mut request: Request,
-    next: Next,
-) -> Response {
+pub async fn add_security_headers(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
 
     response.headers_mut().insert(
@@ -18,20 +11,17 @@ pub async fn add_security_headers(
             .unwrap(),
     );
 
-    response.headers_mut().insert(
-        "X-Content-Type-Options",
-        "nosniff".parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert("X-Content-Type-Options", "nosniff".parse().unwrap());
 
-    response.headers_mut().insert(
-        "X-Frame-Options",
-        "DENY".parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert("X-Frame-Options", "DENY".parse().unwrap());
 
-    response.headers_mut().insert(
-        "X-XSS-Protection",
-        "1; mode=block".parse().unwrap(),
-    );
+    response
+        .headers_mut()
+        .insert("X-XSS-Protection", "1; mode=block".parse().unwrap());
 
     response.headers_mut().insert(
         "Referrer-Policy",

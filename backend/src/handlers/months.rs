@@ -134,7 +134,7 @@ pub async fn create_month(
             }
 
             // Add recurring wage if one is configured
-            if let Ok(wage_option) = crate::handlers::income::get_wage_for_month(
+            if let Ok(Some(wage)) = crate::handlers::income::get_wage_for_month(
                 &pool,
                 claims.sub,
                 payload.year,
@@ -142,16 +142,14 @@ pub async fn create_month(
             )
             .await
             {
-                if let Some(wage) = wage_option {
-                    sqlx::query(
-                        "INSERT INTO income_entries (month_id, label, amount) VALUES (?, ?, ?)",
-                    )
-                    .bind(id)
-                    .bind(&wage.label)
-                    .bind(wage.amount)
-                    .execute(&pool)
-                    .await?;
-                }
+                sqlx::query(
+                    "INSERT INTO income_entries (month_id, label, amount) VALUES (?, ?, ?)",
+                )
+                .bind(id)
+                .bind(&wage.label)
+                .bind(wage.amount)
+                .execute(&pool)
+                .await?;
             }
 
             let (savings, retirement_savings, savings_goal): (f64, f64, f64) = sqlx::query_as(

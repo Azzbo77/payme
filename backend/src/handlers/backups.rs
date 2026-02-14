@@ -1,8 +1,4 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use utoipa::ToSchema;
@@ -49,9 +45,10 @@ pub async fn create_backup(
     Json(_payload): Json<CreateBackupRequest>,
 ) -> Result<Json<BackupResponse>, PaymeError> {
     let db_path = "/data/payme.db";
-    
-    backup::init_backups_dir()
-        .map_err(|e| PaymeError::Internal(format!("Failed to initialize backups directory: {}", e)))?;
+
+    backup::init_backups_dir().map_err(|e| {
+        PaymeError::Internal(format!("Failed to initialize backups directory: {}", e))
+    })?;
 
     let backup_info = backup::create_database_backup(&pool, db_path)
         .await
@@ -123,7 +120,9 @@ pub async fn delete_backup(
 ) -> Result<StatusCode, PaymeError> {
     // Validate filename format
     if !filename.starts_with("payme_") || !filename.ends_with(".db") {
-        return Err(PaymeError::BadRequest("Invalid backup filename format".to_string()));
+        return Err(PaymeError::BadRequest(
+            "Invalid backup filename format".to_string(),
+        ));
     }
 
     let deleted = backup::delete_backup(&filename)
@@ -160,7 +159,9 @@ pub async fn restore_backup(
 ) -> Result<StatusCode, PaymeError> {
     // Validate filename format
     if !filename.starts_with("payme_") || !filename.ends_with(".db") {
-        return Err(PaymeError::BadRequest("Invalid backup filename format".to_string()));
+        return Err(PaymeError::BadRequest(
+            "Invalid backup filename format".to_string(),
+        ));
     }
 
     let backups_dir = backup::get_backups_dir();

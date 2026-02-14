@@ -50,7 +50,7 @@ export function TransferFromCurrentModal({
       setDestination("savings");
       await onTransferSuccess();
       onClose();
-    } catch (err) {
+    } catch {
       showError("Failed to transfer. Please try again.");
       setError("Failed to transfer. Please try again.");
     } finally {

@@ -138,6 +138,7 @@ mod tests {
             fixed_expenses: vec![MonthlyFixedExpense {
                 id: 1,
                 month_id: 1,
+                fixed_expense_id: None,
                 label: "Rent".to_string(),
                 amount: 1500.0,
             }],

@@ -9,7 +9,7 @@ pub async fn create_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> 
 }
 
 /// Run database migrations
-/// 
+///
 /// NOTE: Keep this in sync with the test migrations in backend/tests/common/mod.rs
 /// Both should have identical table schemas and ALTER TABLE statements
 pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
@@ -40,21 +40,29 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await;
 
-    let _ = sqlx::query("ALTER TABLE users ADD COLUMN recurring_wages_enabled INTEGER NOT NULL DEFAULT 1")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "ALTER TABLE users ADD COLUMN recurring_wages_enabled INTEGER NOT NULL DEFAULT 1",
+    )
+    .execute(pool)
+    .await;
 
-    let _ = sqlx::query("ALTER TABLE users ADD COLUMN current_account_enabled INTEGER NOT NULL DEFAULT 1")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "ALTER TABLE users ADD COLUMN current_account_enabled INTEGER NOT NULL DEFAULT 1",
+    )
+    .execute(pool)
+    .await;
 
-    let _ = sqlx::query("ALTER TABLE users ADD COLUMN custom_savings_goals_enabled INTEGER NOT NULL DEFAULT 1")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "ALTER TABLE users ADD COLUMN custom_savings_goals_enabled INTEGER NOT NULL DEFAULT 1",
+    )
+    .execute(pool)
+    .await;
 
-    let _ = sqlx::query("ALTER TABLE users ADD COLUMN fixed_expenses_enabled INTEGER NOT NULL DEFAULT 0")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "ALTER TABLE users ADD COLUMN fixed_expenses_enabled INTEGER NOT NULL DEFAULT 0",
+    )
+    .execute(pool)
+    .await;
 
     let _ = sqlx::query("UPDATE users SET retirement_savings = roth_ira WHERE retirement_savings = 0 AND roth_ira IS NOT NULL AND roth_ira > 0")
         .execute(pool)
@@ -197,7 +205,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     let _ = sqlx::query("ALTER TABLE monthly_fixed_expenses ADD COLUMN fixed_expense_id INTEGER REFERENCES fixed_expenses(id) ON DELETE SET NULL")
         .execute(pool)
         .await;
-    
+
     // Also try without FK (for SQLite compatibility on some versions)
     let _ = sqlx::query("ALTER TABLE monthly_fixed_expenses ADD COLUMN fixed_expense_id INTEGER")
         .execute(pool)
@@ -234,9 +242,10 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
-    let _ = sqlx::query("ALTER TABLE recurring_wages ADD COLUMN label TEXT NOT NULL DEFAULT 'Wages'")
-        .execute(pool)
-        .await;
+    let _ =
+        sqlx::query("ALTER TABLE recurring_wages ADD COLUMN label TEXT NOT NULL DEFAULT 'Wages'")
+            .execute(pool)
+            .await;
 
     sqlx::query(
         r#"
@@ -270,7 +279,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
                 .unwrap_or_default();
 
         for (expense_id, label, amount) in fixed_expenses {
-            sqlx::query(
+            let _ = sqlx::query(
                 "INSERT INTO monthly_fixed_expenses (month_id, fixed_expense_id, label, amount) VALUES (?, ?, ?, ?)",
             )
             .bind(month_id)
@@ -291,7 +300,7 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .unwrap_or(None);
 
         if let Some((savings, retirement_savings, savings_goal)) = user_savings {
-            sqlx::query(
+            let _ = sqlx::query(
                 "INSERT INTO monthly_savings (month_id, savings, retirement_savings, savings_goal) VALUES (?, ?, ?, ?)",
             )
             .bind(month_id)
@@ -310,27 +319,39 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_items_category_id ON items(category_id)")
         .execute(pool)
         .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_items_month_category ON items(month_id, category_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id ON budget_categories(user_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_fixed_expenses_user_id ON fixed_expenses(user_id)")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_items_month_category ON items(month_id, category_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id ON budget_categories(user_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_fixed_expenses_user_id ON fixed_expenses(user_id)",
+    )
+    .execute(pool)
+    .await;
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_months_user_id ON months(user_id)")
         .execute(pool)
         .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_income_entries_month_id ON income_entries(month_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_budgets_month_id ON monthly_budgets(month_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_data_month_id ON monthly_data(month_id)")
-        .execute(pool)
-        .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_income_entries_month_id ON income_entries(month_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_monthly_budgets_month_id ON monthly_budgets(month_id)",
+    )
+    .execute(pool)
+    .await;
+    let _ = sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_monthly_data_month_id ON monthly_data(month_id)",
+    )
+    .execute(pool)
+    .await;
     let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_fixed_expenses_month_id ON monthly_fixed_expenses(month_id)")
         .execute(pool)
         .await;

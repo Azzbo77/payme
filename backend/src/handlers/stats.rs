@@ -59,12 +59,11 @@ pub async fn get_stats(
     let spent_map: HashMap<i64, f64> = spent_by_month.into_iter().collect();
 
     // Fetch fixed expenses once (they don't vary by month)
-    let fixed_total: (f64,) = sqlx::query_as(
-        "SELECT COALESCE(SUM(amount), 0.0) FROM fixed_expenses WHERE user_id = ?",
-    )
-    .bind(claims.sub)
-    .fetch_one(&pool)
-    .await?;
+    let fixed_total: (f64,) =
+        sqlx::query_as("SELECT COALESCE(SUM(amount), 0.0) FROM fixed_expenses WHERE user_id = ?")
+            .bind(claims.sub)
+            .fetch_one(&pool)
+            .await?;
 
     let mut monthly_trends: Vec<MonthlyStats> = vec![];
     let mut total_spending = 0.0;
@@ -132,7 +131,9 @@ pub async fn get_stats(
         }
 
         for (cat_id, cat_label) in categories {
-            let current_spent = *category_map.get(&(current_month_id, cat_id)).unwrap_or(&0.0);
+            let current_spent = *category_map
+                .get(&(current_month_id, cat_id))
+                .unwrap_or(&0.0);
             let previous_spent = previous_month_id
                 .and_then(|prev_id| category_map.get(&(prev_id, cat_id)).copied())
                 .unwrap_or(0.0);

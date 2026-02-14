@@ -94,7 +94,7 @@ function evictIfNeeded(
     (a, b) => metadata[a].lastAccessed - metadata[b].lastAccessed
   );
 
-  let newMetadata = { ...metadata };
+  const newMetadata = { ...metadata };
   let newTotalSize = totalSize;
   let newCount = itemCount;
 

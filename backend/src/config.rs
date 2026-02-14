@@ -47,6 +47,8 @@ mod tests {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3001),
+            finnhub_api_key: None,
+            alphavantage_api_key: None,
         };
 
         assert_eq!(config.database_url, "sqlite:payme.db?mode=rwc");
@@ -77,6 +79,8 @@ mod tests {
                 .ok()
                 .and_then(|p| p.parse().ok())
                 .unwrap_or(3001),
+            finnhub_api_key: None,
+            alphavantage_api_key: None,
         };
 
         assert_eq!(config.database_url, "sqlite:test.db");

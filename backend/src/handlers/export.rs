@@ -192,44 +192,39 @@ pub async fn export_json(
         .await?;
 
         // Get current account balance for this month
-        let current_account_balance: Option<f64> = sqlx::query_scalar(
-            "SELECT balance FROM monthly_current_account WHERE month_id = ?",
-        )
-        .bind(m.id)
-        .fetch_optional(&pool)
-        .await?;
+        let current_account_balance: Option<f64> =
+            sqlx::query_scalar("SELECT balance FROM monthly_current_account WHERE month_id = ?")
+                .bind(m.id)
+                .fetch_optional(&pool)
+                .await?;
 
         // Get monthly savings amount
-        let monthly_savings: Option<f64> = sqlx::query_scalar(
-            "SELECT savings FROM monthly_savings WHERE month_id = ?",
-        )
-        .bind(m.id)
-        .fetch_optional(&pool)
-        .await?;
+        let monthly_savings: Option<f64> =
+            sqlx::query_scalar("SELECT savings FROM monthly_savings WHERE month_id = ?")
+                .bind(m.id)
+                .fetch_optional(&pool)
+                .await?;
 
         // Get monthly savings goal
-        let monthly_savings_goal: Option<f64> = sqlx::query_scalar(
-            "SELECT savings_goal FROM monthly_savings WHERE month_id = ?",
-        )
-        .bind(m.id)
-        .fetch_optional(&pool)
-        .await?;
+        let monthly_savings_goal: Option<f64> =
+            sqlx::query_scalar("SELECT savings_goal FROM monthly_savings WHERE month_id = ?")
+                .bind(m.id)
+                .fetch_optional(&pool)
+                .await?;
 
         // Get monthly retirement savings goal
-        let monthly_retirement_savings_goal: Option<f64> = sqlx::query_scalar(
-            "SELECT retirement_savings FROM monthly_savings WHERE month_id = ?",
-        )
-        .bind(m.id)
-        .fetch_optional(&pool)
-        .await?;
+        let monthly_retirement_savings_goal: Option<f64> =
+            sqlx::query_scalar("SELECT retirement_savings FROM monthly_savings WHERE month_id = ?")
+                .bind(m.id)
+                .fetch_optional(&pool)
+                .await?;
 
         // Get monthly fixed expenses for this month
-        let monthly_fixed_expenses: Vec<(String, f64)> = sqlx::query_as(
-            "SELECT label, amount FROM monthly_fixed_expenses WHERE month_id = ?",
-        )
-        .bind(m.id)
-        .fetch_all(&pool)
-        .await?;
+        let monthly_fixed_expenses: Vec<(String, f64)> =
+            sqlx::query_as("SELECT label, amount FROM monthly_fixed_expenses WHERE month_id = ?")
+                .bind(m.id)
+                .fetch_all(&pool)
+                .await?;
 
         let mut item_exports = Vec::new();
         for item in items {
@@ -270,10 +265,7 @@ pub async fn export_json(
             items: item_exports,
             monthly_fixed_expenses: monthly_fixed_expenses
                 .into_iter()
-                .map(|(label, amount)| MonthlyFixedExpenseExport {
-                    label,
-                    amount,
-                })
+                .map(|(label, amount)| MonthlyFixedExpenseExport { label, amount })
                 .collect(),
         });
     }
@@ -410,7 +402,8 @@ pub async fn import_json(
         .await?;
     }
     // Import fixed expenses
-    let mut fixed_expense_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut fixed_expense_map: std::collections::HashMap<String, i64> =
+        std::collections::HashMap::new();
     for expense in &data.fixed_expenses {
         let id: i64 = sqlx::query_scalar(
             "INSERT INTO fixed_expenses (user_id, label, amount) VALUES (?, ?, ?) RETURNING id",
@@ -462,17 +455,18 @@ pub async fn import_json(
 
         // Restore current account balance
         if let Some(balance) = month_data.current_account_balance {
-            sqlx::query(
-                "INSERT INTO monthly_current_account (month_id, balance) VALUES (?, ?)",
-            )
-            .bind(month_id)
-            .bind(balance)
-            .execute(&mut *tx)
-            .await?;
+            sqlx::query("INSERT INTO monthly_current_account (month_id, balance) VALUES (?, ?)")
+                .bind(month_id)
+                .bind(balance)
+                .execute(&mut *tx)
+                .await?;
         }
 
         // Restore monthly savings
-        if month_data.monthly_savings_amount.is_some() || month_data.monthly_savings_goal.is_some() || month_data.monthly_retirement_savings_goal.is_some() {
+        if month_data.monthly_savings_amount.is_some()
+            || month_data.monthly_savings_goal.is_some()
+            || month_data.monthly_retirement_savings_goal.is_some()
+        {
             sqlx::query("INSERT INTO monthly_savings (month_id, savings, savings_goal, retirement_savings) VALUES (?, ?, ?, ?)")
                 .bind(month_id)
                 .bind(month_data.monthly_savings_amount.unwrap_or(0.0))

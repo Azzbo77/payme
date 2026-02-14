@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, Edit2, Check, X, Settings, Loader, AlertCircle } from "lucide-react";
 import { MonthlyFixedExpense, FixedExpense, api } from "../api/client";
 import { Card } from "./ui/Card";
@@ -37,20 +37,20 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
   });
 
   // Load available templates when modal opens
-  useEffect(() => {
-    if (isManaging && availableTemplates.length === 0) {
-      loadAvailableTemplates();
-    }
-  }, [isManaging]);
-
-  const loadAvailableTemplates = async () => {
+  const loadAvailableTemplates = useCallback(async () => {
     try {
       const templates = await api.monthlyFixedExpenses.getAvailable(monthId);
       setAvailableTemplates(templates);
     } catch {
       error("Failed to load available templates");
     }
-  };
+  }, [monthId, error]);
+
+  useEffect(() => {
+    if (isManaging && availableTemplates.length === 0) {
+      loadAvailableTemplates();
+    }
+  }, [isManaging, availableTemplates.length, loadAvailableTemplates]);
 
   const handleAddFromTemplate = async (template: FixedExpense) => {
     setAddLoading(true);

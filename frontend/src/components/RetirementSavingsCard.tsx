@@ -47,7 +47,7 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
       try {
         const converted = await convertUSDPrice(1, currency.code);
         setConversionRate(converted);
-      } catch (err) {
+      } catch {
         setConversionRate(1); // Fallback to 1:1 if conversion fails
       }
     };

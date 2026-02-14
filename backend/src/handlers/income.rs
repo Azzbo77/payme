@@ -360,8 +360,9 @@ pub async fn update_recurring_wage(
 
     // Validate the effective_from date format if provided
     if let Some(ref effective_from) = payload.effective_from {
-        NaiveDate::parse_from_str(effective_from, "%Y-%m-%d")
-            .map_err(|_| PaymeError::BadRequest("Invalid date format. Use YYYY-MM-DD".to_string()))?;
+        NaiveDate::parse_from_str(effective_from, "%Y-%m-%d").map_err(|_| {
+            PaymeError::BadRequest("Invalid date format. Use YYYY-MM-DD".to_string())
+        })?;
     }
 
     let amount = payload.amount.unwrap_or(wage.amount);
@@ -426,12 +427,11 @@ pub async fn get_wage_for_month(
     month: i32,
 ) -> Result<Option<RecurringWage>, PaymeError> {
     // Check if recurring wages are enabled
-    let enabled: Option<i64> = sqlx::query_scalar(
-        "SELECT recurring_wages_enabled FROM users WHERE id = ?",
-    )
-    .bind(user_id)
-    .fetch_optional(pool)
-    .await?;
+    let enabled: Option<i64> =
+        sqlx::query_scalar("SELECT recurring_wages_enabled FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_optional(pool)
+            .await?;
 
     if enabled != Some(1) {
         return Ok(None);
@@ -465,12 +465,10 @@ pub async fn get_recurring_wages_enabled(
     State(pool): State<SqlitePool>,
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<serde_json::Value>, PaymeError> {
-    let enabled: i64 = sqlx::query_scalar(
-        "SELECT recurring_wages_enabled FROM users WHERE id = ?",
-    )
-    .bind(claims.sub)
-    .fetch_one(&pool)
-    .await?;
+    let enabled: i64 = sqlx::query_scalar("SELECT recurring_wages_enabled FROM users WHERE id = ?")
+        .bind(claims.sub)
+        .fetch_one(&pool)
+        .await?;
 
     Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
 }

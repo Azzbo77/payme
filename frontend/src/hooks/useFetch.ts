@@ -8,7 +8,7 @@ interface UseFetchState<T> {
 
 interface UseFetchOptions {
   immediate?: boolean;
-  onSuccess?: (data: any) => void;
+  onSuccess?: (data: unknown) => void;
   onError?: (error: Error) => void;
 }
 
@@ -18,7 +18,7 @@ interface UseFetchOptions {
  */
 export function useFetch<T>(
   fetchFn: () => Promise<T>,
-  deps: unknown[] = [],
+  deps?: unknown[],
   options: UseFetchOptions = {}
 ): UseFetchState<T> & { refetch: () => Promise<void> } {
   const [data, setData] = useState<T | null>(null);
@@ -46,7 +46,8 @@ export function useFetch<T>(
       return;
     }
     refetch();
-  }, [refetch, ...deps]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refetch, options.immediate, ...(deps || [])]);
 
   return { data, loading, error, refetch };
 }

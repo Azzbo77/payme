@@ -85,7 +85,7 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
           try {
             const items = JSON.parse(stored);
             setRetirementBreakdown(items);
-          } catch (e) {
+          } catch {
             // Failed to parse, will show empty breakdown
           }
         }
@@ -97,7 +97,7 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
           try {
             const converted = await convertUSDPrice(1, currency.code);
             setConversionRate(converted);
-          } catch (err) {
+          } catch {
             setConversionRate(1);
           }
         }

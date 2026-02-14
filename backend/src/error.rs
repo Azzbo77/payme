@@ -50,11 +50,7 @@ impl IntoResponse for PaymeError {
                 "Validation error".to_string(),
                 Some(format!("Request validation failed: {}", err)),
             ),
-            PaymeError::NotFound => (
-                StatusCode::NOT_FOUND,
-                "Not found".to_string(),
-                None,
-            ),
+            PaymeError::NotFound => (StatusCode::NOT_FOUND, "Not found".to_string(), None),
             PaymeError::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
                 "Unauthorized".to_string(),
@@ -79,10 +75,7 @@ impl IntoResponse for PaymeError {
 
         tracing::error!("{}: {:?}", error, details);
 
-        let error_response = ErrorResponse {
-            error,
-            details,
-        };
+        let error_response = ErrorResponse { error, details };
 
         (status, Json(error_response)).into_response()
     }

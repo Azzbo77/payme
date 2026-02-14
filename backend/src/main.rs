@@ -13,12 +13,12 @@ use utoipa_swagger_ui::SwaggerUi;
 async fn main() {
     tracing_subscriber::fmt::init();
     let config = Config::from_env();
-    
+
     // Initialize backup directory
     if let Err(e) = backup::init_backups_dir() {
         tracing::warn!("Failed to initialize backups directory: {}", e);
     }
-    
+
     let pool = db::create_pool(&config.database_url)
         .await
         .expect("Failed to create database pool");
@@ -42,9 +42,9 @@ async fn main() {
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .expect("Server error");
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .expect("Server error");
 }
 
 async fn shutdown_signal() {

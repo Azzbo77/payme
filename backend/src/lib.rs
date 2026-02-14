@@ -24,13 +24,13 @@ use handlers::{
 };
 use middleware::auth::auth_middleware;
 use middleware::security::add_security_headers;
-use ratelimit::{RateLimitManager, IPRateLimiter, STOCK_API_RATE_LIMIT, AUTH_RATE_LIMIT};
+use ratelimit::{IPRateLimiter, RateLimitManager, AUTH_RATE_LIMIT, STOCK_API_RATE_LIMIT};
 use std::sync::Arc;
 
 /// Create the application router with all routes
 pub fn create_app(pool: SqlitePool) -> Router {
     let ip_rate_limiter = Arc::new(IPRateLimiter::new(AUTH_RATE_LIMIT));
-    
+
     let public_routes = Router::new()
         .route("/health", get(health::health_check))
         .route("/api/auth/register", post(auth::register))
@@ -139,17 +139,50 @@ pub fn create_app(pool: SqlitePool) -> Router {
         )
         .route("/api/recurring-wages", get(income::list_recurring_wages))
         .route("/api/recurring-wages", post(income::create_recurring_wage))
-        .route("/api/recurring-wages/current", get(income::get_current_recurring_wage))
-        .route("/api/recurring-wages/preferences/enabled", get(income::get_recurring_wages_enabled))
-        .route("/api/recurring-wages/preferences/enabled", put(income::set_recurring_wages_enabled))
-        .route("/api/current-account/preferences/enabled", get(monthly_data::get_current_account_enabled))
-        .route("/api/current-account/preferences/enabled", put(monthly_data::set_current_account_enabled))
-        .route("/api/custom-savings-goals/preferences/enabled", get(monthly_data::get_custom_savings_goals_enabled))
-        .route("/api/custom-savings-goals/preferences/enabled", put(monthly_data::set_custom_savings_goals_enabled))
-        .route("/api/fixed-expenses/preferences/enabled", get(monthly_data::get_fixed_expenses_enabled))
-        .route("/api/fixed-expenses/preferences/enabled", put(monthly_data::set_fixed_expenses_enabled))
-        .route("/api/recurring-wages/{id}", put(income::update_recurring_wage))
-        .route("/api/recurring-wages/{id}", delete(income::delete_recurring_wage))
+        .route(
+            "/api/recurring-wages/current",
+            get(income::get_current_recurring_wage),
+        )
+        .route(
+            "/api/recurring-wages/preferences/enabled",
+            get(income::get_recurring_wages_enabled),
+        )
+        .route(
+            "/api/recurring-wages/preferences/enabled",
+            put(income::set_recurring_wages_enabled),
+        )
+        .route(
+            "/api/current-account/preferences/enabled",
+            get(monthly_data::get_current_account_enabled),
+        )
+        .route(
+            "/api/current-account/preferences/enabled",
+            put(monthly_data::set_current_account_enabled),
+        )
+        .route(
+            "/api/custom-savings-goals/preferences/enabled",
+            get(monthly_data::get_custom_savings_goals_enabled),
+        )
+        .route(
+            "/api/custom-savings-goals/preferences/enabled",
+            put(monthly_data::set_custom_savings_goals_enabled),
+        )
+        .route(
+            "/api/fixed-expenses/preferences/enabled",
+            get(monthly_data::get_fixed_expenses_enabled),
+        )
+        .route(
+            "/api/fixed-expenses/preferences/enabled",
+            put(monthly_data::set_fixed_expenses_enabled),
+        )
+        .route(
+            "/api/recurring-wages/{id}",
+            put(income::update_recurring_wage),
+        )
+        .route(
+            "/api/recurring-wages/{id}",
+            delete(income::delete_recurring_wage),
+        )
         .route("/api/stats", get(stats::get_stats))
         .route("/api/savings", get(savings::get_savings))
         .route("/api/savings", put(savings::update_savings))
@@ -167,7 +200,10 @@ pub fn create_app(pool: SqlitePool) -> Router {
         .route("/api/backups/create", post(backups::create_backup))
         .route("/api/backups/list", get(backups::list_backups))
         .route("/api/backups/{filename}", delete(backups::delete_backup))
-        .route("/api/backups/{filename}/restore", post(backups::restore_backup))
+        .route(
+            "/api/backups/{filename}/restore",
+            post(backups::restore_backup),
+        )
         .route("/api/stocks/price", get(stocks::get_stock_price))
         .route("/api/stocks/exchange-rate", get(stocks::get_exchange_rate))
         .layer(Extension(rate_limiter))

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useLayoutEffect } from "react";
 import { Banknote, Pencil, Check, X, Send } from "lucide-react";
 import { api, CurrentAccountBalance } from "../api/client";
 import { Card } from "./ui/Card";
@@ -41,9 +41,12 @@ export function CurrentAccountCard({
     _startEdit();
   };
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (initialBalance) {
-      setBalance(initialBalance.balance);
+      // Schedule state update asynchronously to avoid sync setState warning
+      Promise.resolve().then(() => {
+        setBalance(initialBalance.balance);
+      });
       return;
     }
     api.monthlyCurrentAccount.get(monthId).then((res) => {

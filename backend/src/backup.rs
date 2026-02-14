@@ -1,7 +1,7 @@
 use chrono::Utc;
+use sqlx::SqlitePool;
 use std::fs;
 use std::path::PathBuf;
-use sqlx::SqlitePool;
 
 /// Backup metadata
 #[derive(Debug, Clone)]
@@ -26,7 +26,10 @@ pub fn init_backups_dir() -> std::io::Result<()> {
 }
 
 /// Create a timestamped backup of the database
-pub async fn create_database_backup(pool: &SqlitePool, db_path: &str) -> Result<BackupInfo, Box<dyn std::error::Error>> {
+pub async fn create_database_backup(
+    pool: &SqlitePool,
+    db_path: &str,
+) -> Result<BackupInfo, Box<dyn std::error::Error>> {
     // Ensure database is synced
     sqlx::query("PRAGMA synchronous = FULL")
         .execute(pool)
@@ -53,7 +56,7 @@ pub async fn create_database_backup(pool: &SqlitePool, db_path: &str) -> Result<
 /// List all available backups, sorted by date (newest first)
 pub fn list_backups() -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
     let backups_dir = get_backups_dir();
-    
+
     if !backups_dir.exists() {
         return Ok(Vec::new());
     }
@@ -63,7 +66,7 @@ pub fn list_backups() -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
     for entry in fs::read_dir(&backups_dir)? {
         let entry = entry?;
         let path = entry.path();
-        
+
         if path.is_file() {
             if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
                 if filename.starts_with("payme_") && filename.ends_with(".db") {
@@ -74,7 +77,7 @@ pub fn list_backups() -> Result<Vec<BackupInfo>, Box<dyn std::error::Error>> {
                         .and_then(|s| s.strip_suffix(".db"))
                         .unwrap_or("")
                         .to_string();
-                    
+
                     backups.push(BackupInfo {
                         filename: filename.to_string(),
                         timestamp,
@@ -117,7 +120,7 @@ pub fn delete_backup(filename: &str) -> Result<bool, Box<dyn std::error::Error>>
 /// Clean up old backups, keeping only the most recent `keep_count` backups
 pub fn cleanup_old_backups(keep_count: usize) -> Result<(), Box<dyn std::error::Error>> {
     let backups = list_backups()?;
-    
+
     if backups.len() > keep_count {
         // Remove older backups beyond keep_count
         let to_delete = &backups[keep_count..];
@@ -137,7 +140,7 @@ pub fn get_backup_size(filename: &str) -> Result<u64, Box<dyn std::error::Error>
 
     let backups_dir = get_backups_dir();
     let path = backups_dir.join(filename);
-    
+
     let metadata = fs::metadata(path)?;
     Ok(metadata.len())
 }

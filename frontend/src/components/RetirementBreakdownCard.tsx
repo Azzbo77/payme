@@ -86,7 +86,7 @@ export function RetirementBreakdownCard() {
         saveItems([...breakdownItems, newItem]);
         success(`Added: ${label}`);
         resetForm();
-      } catch (err) {
+      } catch {
         error("Failed to add item");
       } finally {
         setAddLoading(false);

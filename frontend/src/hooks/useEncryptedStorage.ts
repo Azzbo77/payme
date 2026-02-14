@@ -52,7 +52,7 @@ export function useEncryptedStorage<T>(
         // Check if it looks like an encrypted item
         if (parsed?.ciphertext && parsed?.iv && parsed?.version) {
           // Return marker that we need to decrypt
-          return { __encrypted: true, __data: parsed } as any;
+          return { __encrypted: true, __data: parsed } as unknown as T;
         }
       } catch {
         // Not encrypted, assume it's plain JSON
@@ -70,30 +70,33 @@ export function useEncryptedStorage<T>(
   const [decryptedValue, setDecryptedValue] = useState<T>(storedValue);
 
   useEffect(() => {
-    if (
-      !isEncryptionSupported() ||
-      !userId ||
-      !storedValue ||
-      typeof storedValue !== "object"
-    ) {
-      setDecryptedValue(storedValue);
-      return;
-    }
+    const decryptIfNeeded = async () => {
+      if (
+        !isEncryptionSupported() ||
+        !userId ||
+        !storedValue ||
+        typeof storedValue !== "object"
+      ) {
+        setDecryptedValue(storedValue);
+        return;
+      }
 
-    const value = storedValue as any;
-    if (value.__encrypted && value.__data) {
-      // Decrypt asynchronously
-      decrypt(value.__data, userId, passphrase)
-        .then((decrypted) => {
+      const value = storedValue as unknown as { __encrypted?: boolean; __data?: EncryptedStorageItem };
+      if (value.__encrypted && value.__data) {
+        // Decrypt asynchronously
+        try {
+          const decrypted = await decrypt(value.__data, userId, passphrase);
           setDecryptedValue(decrypted as T);
-        })
-        .catch((error) => {
-          console.error("Decryption error:", error);
+        } catch (err) {
+          console.error("Decryption error:", err);
           setDecryptedValue(storedValue);
-        });
-    } else {
-      setDecryptedValue(storedValue);
-    }
+        }
+      } else {
+        setDecryptedValue(storedValue);
+      }
+    };
+    
+    decryptIfNeeded();
   }, [storedValue, userId, passphrase]);
 
   const setValue = useCallback(
