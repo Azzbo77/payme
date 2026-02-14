@@ -1,20 +1,23 @@
 import { useState, useCallback, useEffect } from "react";
+import { ApiError, ApiErrorType } from "../api/errors";
 
 interface UseFetchState<T> {
   data: T | null;
   loading: boolean;
-  error: Error | null;
+  error: ApiError | null;
+  errorType: ApiErrorType | null;
+  errorMessage: string | null;
 }
 
 interface UseFetchOptions {
   immediate?: boolean;
   onSuccess?: (data: unknown) => void;
-  onError?: (error: Error) => void;
+  onError?: (error: ApiError) => void;
 }
 
 /**
  * Centralized hook for API calls with automatic loading and error states
- * Eliminates repetitive state management across components
+ * Provides better error handling with error type differentiation
  */
 export function useFetch<T>(
   fetchFn: () => Promise<T>,
@@ -23,19 +26,30 @@ export function useFetch<T>(
 ): UseFetchState<T> & { refetch: () => Promise<void> } {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(options.immediate !== false);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [errorType, setErrorType] = useState<ApiErrorType | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setErrorType(null);
+    setErrorMessage(null);
     try {
       const result = await fetchFn();
       setData(result);
       options.onSuccess?.(result);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      options.onError?.(error);
+      const apiError = err instanceof ApiError
+        ? err
+        : new ApiError(
+            err instanceof Error ? err.message : String(err),
+            "unknown"
+          );
+      setError(apiError);
+      setErrorType(apiError.type);
+      setErrorMessage(apiError.getUserMessage());
+      options.onError?.(apiError);
     } finally {
       setLoading(false);
     }
@@ -49,5 +63,5 @@ export function useFetch<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refetch, options.immediate, ...(deps || [])]);
 
-  return { data, loading, error, refetch };
+  return { data, loading, error, errorType, errorMessage, refetch };
 }

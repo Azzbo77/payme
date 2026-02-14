@@ -1,20 +1,40 @@
+import { ApiError, parseApiError } from "./errors";
+
 const BASE_URL = "/api";
 
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-    credentials: "include",
-  });
+  let response: Response;
+  
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+      credentials: "include",
+    });
+  } catch (err) {
+    // Network error
+    const message = err instanceof Error ? err.message : "Network error";
+    throw new ApiError(message, "network", 0);
+  }
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+
+    const requestId = (body as Record<string, unknown> | null)?.request_id as
+      | string
+      | undefined;
+    throw parseApiError(response.status, body, requestId);
   }
 
   if (response.status === 204) {
