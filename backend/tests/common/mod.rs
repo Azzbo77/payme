@@ -63,6 +63,8 @@ async fn run_migrations(pool: &SqlitePool) {
             current_account_enabled INTEGER NOT NULL DEFAULT 1,
             custom_savings_goals_enabled INTEGER NOT NULL DEFAULT 1,
             fixed_expenses_enabled INTEGER NOT NULL DEFAULT 0,
+            payday INTEGER NOT NULL DEFAULT 21,
+            payday_mode_enabled INTEGER NOT NULL DEFAULT 1,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
         "#,

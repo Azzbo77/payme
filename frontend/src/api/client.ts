@@ -92,6 +92,19 @@ export const api = {
       });
       return response.blob();
     },
+    getPayday: () => request<{ payday: number }>("/payday/preferences"),
+    setPayday: (payday: number) =>
+      request<{ payday: number }>("/payday/preferences", {
+        method: "PUT",
+        body: JSON.stringify({ payday }),
+      }),
+    getPaydayModeEnabled: () =>
+      request<{ enabled: boolean }>("/payday-mode/preferences/enabled"),
+    setPaydayModeEnabled: (enabled: boolean) =>
+      request<{ enabled: boolean }>("/payday-mode/preferences/enabled", {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+      }),
   },
 
   fixedExpenses: {

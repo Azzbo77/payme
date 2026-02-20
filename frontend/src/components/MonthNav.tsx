@@ -117,6 +117,7 @@ export function MonthNav({
         <button
           onClick={openPicker}
           className="text-center hover:bg-sand-200 dark:hover:bg-charcoal-800 px-3 py-1 rounded-lg transition-colors"
+          title="Payday period: 21st of previous month to 20th of this month"
         >
           <div className="text-xl sm:text-2xl font-semibold text-charcoal-900 dark:text-sand-50 flex items-center gap-2 justify-center">
             {MONTH_NAMES[selectedMonth.month - 1]} {selectedMonth.year}

@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use chrono::{Datelike, Utc};
+use chrono::{Datelike, Duration, Local, NaiveDate, Utc};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use utoipa::ToSchema;
@@ -201,9 +201,7 @@ pub async fn get_or_create_current_month(
     State(pool): State<SqlitePool>,
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<MonthSummary>, PaymeError> {
-    let now = Utc::now();
-    let year = now.year();
-    let month = now.month() as i32;
+    let (year, month) = get_current_payday_month(&pool, claims.sub).await?;
 
     let existing: Option<Month> = sqlx::query_as(
         "SELECT id, user_id, year, month, is_closed, closed_at FROM months WHERE user_id = ? AND year = ? AND month = ?",
@@ -596,3 +594,185 @@ pub async fn get_month_pdf(
         snapshot.0,
     ))
 }
+
+#[utoipa::path(
+    get,
+    path = "/api/payday/preferences",
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Preferences",
+    summary = "Get payday preference",
+    description = "Returns the user's configured payday (day of month when accounting period starts)."
+)]
+pub async fn get_payday(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let payday: i32 = sqlx::query_scalar("SELECT payday FROM users WHERE id = ?")
+        .bind(claims.sub)
+        .fetch_one(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "payday": payday })))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/payday/preferences",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 400, description = "Invalid payday"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Preferences",
+    summary = "Set payday preference",
+    description = "Sets the user's payday (day of month when accounting period starts). Must be between 1 and 31."
+)]
+pub async fn set_payday(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let payday = payload
+        .get("payday")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| PaymeError::BadRequest("Invalid payload".to_string()))?;
+
+    if payday < 1 || payday > 31 {
+        return Err(PaymeError::BadRequest(
+            "Payday must be between 1 and 31".to_string(),
+        ));
+    }
+
+    sqlx::query("UPDATE users SET payday = ? WHERE id = ?")
+        .bind(payday as i32)
+        .bind(claims.sub)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "payday": payday })))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/payday-mode/preferences/enabled",
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Preferences",
+    summary = "Get payday mode status",
+    description = "Returns whether payday-based accounting periods are enabled for the user."
+)]
+pub async fn get_payday_mode_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled: i64 = sqlx::query_scalar("SELECT payday_mode_enabled FROM users WHERE id = ?")
+        .bind(claims.sub)
+        .fetch_one(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled == 1 })))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/payday-mode/preferences/enabled",
+    request_body = serde_json::Value,
+    responses(
+        (status = 200, body = serde_json::Value),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Preferences",
+    summary = "Set payday mode status",
+    description = "Enables or disables payday-based accounting periods for the user."
+)]
+pub async fn set_payday_mode_enabled(
+    State(pool): State<SqlitePool>,
+    axum::Extension(claims): axum::Extension<Claims>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, PaymeError> {
+    let enabled = payload
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .ok_or_else(|| PaymeError::BadRequest("Invalid payload".to_string()))?;
+
+    let enabled_int = if enabled { 1 } else { 0 };
+
+    sqlx::query("UPDATE users SET payday_mode_enabled = ? WHERE id = ?")
+        .bind(enabled_int)
+        .bind(claims.sub)
+        .execute(&pool)
+        .await?;
+
+    Ok(Json(serde_json::json!({ "enabled": enabled })))
+}
+
+/// Helper function to calculate the current month
+/// If payday mode is enabled, uses payday-based periods
+/// If disabled, uses traditional calendar months
+async fn get_current_payday_month(pool: &SqlitePool, user_id: i64) -> Result<(i32, i32), PaymeError> {
+    // Get the user's payday preferences
+    let (payday_mode_enabled, payday_pref): (i32, i32) = sqlx::query_as(
+        "SELECT payday_mode_enabled, payday FROM users WHERE id = ?"
+    )
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
+
+    let today = Local::now().naive_local().date();
+    let year = today.year();
+    let month = today.month() as i32;
+    
+    // If payday mode is disabled, use traditional calendar months
+    if payday_mode_enabled == 0 {
+        return Ok((year, month));
+    }
+    
+    // Otherwise, use payday-based periods
+    // Get the user's payday of the current month
+    let payday_candidate = NaiveDate::from_ymd_opt(year, month as u32, payday_pref as u32)
+        .unwrap_or_else(|| {
+            // Fallback if day doesn't exist (e.g., Feb 30)
+            // Use last day of month minus 9 days (to stay in the month)
+            let last_day = if month == 12 {
+                NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap() - Duration::days(1)
+            } else {
+                NaiveDate::from_ymd_opt(year, (month + 1) as u32, 1).unwrap() - Duration::days(1)
+            };
+            last_day.min(NaiveDate::from_ymd_opt(year, month as u32, 28).unwrap())
+        });
+    
+    // Adjust payday if it falls on a weekend
+    let payday = adjust_payday_for_weekend(payday_candidate);
+    
+    // If today is on or after the payday, we're in the current payday month
+    // Otherwise, we're in the previous payday month
+    if today >= payday {
+        Ok((year, month))
+    } else {
+        // We're before the payday, so we're in the previous month's payday period
+        let prev_month = month - 1;
+        let prev_year = if prev_month < 1 { year - 1 } else { year };
+        let prev_month_normalized = if prev_month < 1 { 12 } else { prev_month };
+        
+        Ok((prev_year, prev_month_normalized))
+    }
+}
+
+/// Helper function to adjust payday if it falls on a weekend
+/// If payday is Saturday, move it to Friday
+/// If payday is Sunday, move it to Friday
+fn adjust_payday_for_weekend(payday: NaiveDate) -> NaiveDate {
+    let weekday = payday.weekday();
+    match weekday {
+        chrono::Weekday::Sat => payday - Duration::days(1), // Friday
+        chrono::Weekday::Sun => payday - Duration::days(2),    // Friday
+        _ => payday,
+    }
+}
+

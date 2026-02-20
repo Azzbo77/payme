@@ -75,6 +75,15 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
   const [showRecurringItemsManageModal, setShowRecurringItemsManageModal] = useState(false);
   const [showRecurringItemsInfoModal, setShowRecurringItemsInfoModal] = useState(false);
 
+  // Payday state
+  const [payday, setPayday] = useState<number | null>(null);
+  const [paydayModeEnabled, setPaydayModeEnabled] = useState(true);
+  const [showPaydayInfoModal, setShowPaydayInfoModal] = useState(false);
+  const [paydayLoading, setPaydayLoading] = useState(false);
+  const [paydayError, setPaydayError] = useState("");
+  const [paydaySuccess, setPaydaySuccess] = useState(false);
+  const [paydayLoaded, setPaydayLoaded] = useState(false);
+
   const loadRecurringWages = async () => {
     try {
       const wages = await api.recurringWages.list();
@@ -286,6 +295,62 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
     setShowPortfolioEncryptionModal(false);
   };
 
+  const loadPayday = async () => {
+    if (paydayLoaded) return;
+    try {
+      const [paydayResult, modeResult] = await Promise.all([
+        api.months.getPayday(),
+        api.months.getPaydayModeEnabled(),
+      ]);
+      setPayday(paydayResult.payday);
+      setPaydayModeEnabled(modeResult.enabled);
+      setPaydayLoaded(true);
+    } catch {
+      setPaydayError("Failed to load payday preference");
+    }
+  };
+
+  const handleSavePayday = async () => {
+    if (payday === null || payday < 1 || payday > 31) {
+      setPaydayError("Payday must be between 1 and 31");
+      return;
+    }
+
+    setPaydayLoading(true);
+    setPaydayError("");
+    try {
+      await api.months.setPayday(payday);
+      setPaydaySuccess(true);
+      setTimeout(() => setPaydaySuccess(false), 3000);
+    } catch {
+      setPaydayError("Failed to save payday preference");
+    } finally {
+      setPaydayLoading(false);
+    }
+  };
+
+  const handleTogglePaydayMode = async () => {
+    setPaydayLoading(true);
+    setPaydayError("");
+    try {
+      await api.months.setPaydayModeEnabled(!paydayModeEnabled);
+      setPaydayModeEnabled(!paydayModeEnabled);
+      setPaydaySuccess(true);
+      setTimeout(() => setPaydaySuccess(false), 3000);
+    } catch {
+      setPaydayError("Failed to update payday mode");
+    } finally {
+      setPaydayLoading(false);
+    }
+  };
+
+  const openPaydayModal = async () => {
+    setShowPaydayInfoModal(true);
+    if (!paydayLoaded) {
+      await loadPayday();
+    }
+  };
+
   return (
     <Layout>
       <div className="max-w-2xl mx-auto">
@@ -327,6 +392,77 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
               <Button onClick={handleSaveCurrency} disabled={selectedCurrency === currency.code}>
                 Save Currency
               </Button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-charcoal-900 border border-sand-300 dark:border-charcoal-800 p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200 mb-4">
+              Payday
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300">
+                      Enable Payday-Based Periods
+                    </label>
+                    <button
+                      onClick={openPaydayModal}
+                      className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
+                      title="How payday works"
+                    >
+                      <Info size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400">
+                    Use payday-based accounting periods instead of calendar months
+                  </p>
+                </div>
+                <button
+                  onClick={handleTogglePaydayMode}
+                  disabled={paydayLoading}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    paydayModeEnabled
+                      ? "bg-sage-600 dark:bg-sage-500"
+                      : "bg-charcoal-300 dark:bg-charcoal-600"
+                  } ${paydayLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      paydayModeEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {paydayModeEnabled && (
+                <div>
+                  <label className="text-sm font-medium text-charcoal-700 dark:text-sand-300 block mb-2">
+                    Day of Month (1-31)
+                  </label>
+                  <p className="text-xs text-charcoal-500 dark:text-charcoal-400 mb-3">
+                    Your accounting period starts on this day each month. If it falls on a weekend, it will move to Friday.
+                  </p>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={payday || "21"}
+                    onChange={(e) => setPayday(parseInt(e.target.value) || 21)}
+                    className="w-full px-3 py-2 border border-sand-300 dark:border-charcoal-600 rounded bg-white dark:bg-charcoal-800 text-charcoal-900 dark:text-sand-100"
+                  />
+                </div>
+              )}
+              {paydayError && <p className="text-sm text-red-600">{paydayError}</p>}
+              {paydaySuccess && <p className="text-sm text-sage-600">Payday updated successfully</p>}
+              {paydayModeEnabled && (
+                <Button
+                  onClick={handleSavePayday}
+                  disabled={paydayLoading || payday === null}
+                >
+                  {paydayLoading ? "Saving..." : "Save Payday Day"}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -1656,6 +1792,54 @@ export function Settings({ onBack, from = "dashboard" }: SettingsProps) {
               className="flex-1"
             >
               Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showPaydayInfoModal} onClose={() => setShowPaydayInfoModal(false)}>
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold text-charcoal-800 dark:text-sand-100">
+            How to Use Payday Settings
+          </h2>
+          
+          <div className="space-y-3 text-sm text-charcoal-600 dark:text-charcoal-300">
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">What is Payday Mode?</p>
+              <p>This is an optional feature. When enabled, payday-based accounting periods organize your finances around when you get paid instead of using calendar months (1st-31st). Each month in the app represents the period from your payday in one calendar month to your payday in the next month.</p>
+            </div>
+
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Calendar Months (Default):</p>
+              <p>If payday mode is disabled, the app uses traditional calendar months (1st through the last day of each month).</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Example with Payday Mode Enabled:</p>
+              <p>If your payday is the 21st and today is February 20th:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2 mt-2">
+                <li>You're in the January period (Jan 21 - Feb 20)</li>
+                <li>Tomorrow (Feb 21) starts the February period (Feb 21 - Mar 20)</li>
+              </ul>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Weekend Adjustment:</p>
+              <p>If your chosen payday falls on a weekend (Saturday or Sunday), it automatically moves to Friday of that week.</p>
+            </div>
+            
+            <div>
+              <p className="font-medium text-charcoal-700 dark:text-sand-300 mb-1">Switching Modes:</p>
+              <p>You can toggle payday mode on or off anytime. When disabled, the app uses calendar months. When enabled again, it uses your configured payday.</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              onClick={() => setShowPaydayInfoModal(false)}
+              className="w-full"
+            >
+              Got it
             </Button>
           </div>
         </div>

@@ -188,6 +188,22 @@ pub fn create_app_with_config(pool: SqlitePool, config: Config) -> Router {
             put(monthly_data::set_fixed_expenses_enabled),
         )
         .route(
+            "/api/payday/preferences",
+            get(months::get_payday),
+        )
+        .route(
+            "/api/payday/preferences",
+            put(months::set_payday),
+        )
+        .route(
+            "/api/payday-mode/preferences/enabled",
+            get(months::get_payday_mode_enabled),
+        )
+        .route(
+            "/api/payday-mode/preferences/enabled",
+            put(months::set_payday_mode_enabled),
+        )
+        .route(
             "/api/recurring-wages/{id}",
             put(income::update_recurring_wage),
         )
