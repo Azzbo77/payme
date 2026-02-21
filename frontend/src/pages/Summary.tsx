@@ -53,6 +53,11 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
   >([]);
   const [conversionRate, setConversionRate] = useState<number>(1);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
+  
+  // Fixed expenses breakdown state
+  const [yearlyFixedExpenses, setYearlyFixedExpenses] = useState<
+    Array<{ label: string; total: number }>
+  >([]);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -130,8 +135,30 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
   const loadYearData = async () => {
     setLoading(true);
     try {
-      const data = await api.stats.get();
-      setYearStats(data);
+      const [statsData, monthsList] = await Promise.all([
+        api.stats.get(),
+        api.months.list(),
+      ]);
+      setYearStats(statsData);
+      
+      // Aggregate fixed expenses from all months
+      const fixedExpensesMap = new Map<string, number>();
+      for (const month of monthsList) {
+        try {
+          const monthData = await api.months.get(month.id);
+          for (const fixedExp of monthData.fixed_expenses) {
+            const current = fixedExpensesMap.get(fixedExp.label) || 0;
+            fixedExpensesMap.set(fixedExp.label, current + fixedExp.amount);
+          }
+        } catch (err) {
+          console.error(`Failed to load month ${month.id}:`, err);
+        }
+      }
+      
+      const aggregatedExpenses = Array.from(fixedExpensesMap.entries())
+        .map(([label, total]) => ({ label, total }))
+        .sort((a, b) => b.total - a.total);
+      setYearlyFixedExpenses(aggregatedExpenses);
     } finally {
       setLoading(false);
     }
@@ -425,6 +452,43 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
               </Card>
             )}
 
+            {monthSummary.fixed_expenses.length > 0 && (
+              <Card>
+                <h3 className="text-sm font-medium text-charcoal-700 dark:text-sand-200 mb-4">
+                  Fixed Expenses Breakdown
+                </h3>
+                <div className="overflow-x-auto -mx-4 px-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-sand-300 dark:border-charcoal-700">
+                        <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Expense
+                        </th>
+                        <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthSummary.fixed_expenses.map((expense) => (
+                        <tr
+                          key={expense.id}
+                          className="border-b border-sand-200 dark:border-charcoal-800 hover:bg-sand-100 dark:hover:bg-charcoal-900/50"
+                        >
+                          <td className="py-2 px-1 text-charcoal-800 dark:text-sand-200 text-xs md:text-sm font-medium">
+                            {expense.label}
+                          </td>
+                          <td className="py-2 px-1 text-right font-medium text-xs md:text-sm text-charcoal-600 dark:text-sand-300">
+                            {formatCurrency(expense.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
             {topSpending.length > 0 && (
               <Card>
                 <h3 className="text-sm font-medium text-charcoal-700 dark:text-sand-200 mb-4">
@@ -539,6 +603,51 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
                 </div>
               </Card>
             </div>
+
+            {yearlyFixedExpenses.length > 0 && (
+              <Card>
+                <h3 className="text-sm font-medium text-charcoal-700 dark:text-sand-200 mb-4">
+                  Fixed Expenses Breakdown (Yearly Total)
+                </h3>
+                <div className="overflow-x-auto -mx-4 px-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-sand-300 dark:border-charcoal-700">
+                        <th className="text-left py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Expense
+                        </th>
+                        <th className="text-right py-2 px-1 font-medium text-charcoal-600 dark:text-sand-400 text-xs md:text-sm">
+                          Yearly Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {yearlyFixedExpenses.map((expense) => (
+                        <tr
+                          key={expense.label}
+                          className="border-b border-sand-200 dark:border-charcoal-800 hover:bg-sand-100 dark:hover:bg-charcoal-900/50"
+                        >
+                          <td className="py-2 px-1 text-charcoal-800 dark:text-sand-200 text-xs md:text-sm font-medium">
+                            {expense.label}
+                          </td>
+                          <td className="py-2 px-1 text-right font-medium text-xs md:text-sm text-charcoal-600 dark:text-sand-300">
+                            {formatCurrency(expense.total)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="border-t border-sand-300 dark:border-charcoal-700 font-semibold">
+                        <td className="py-2 px-1 text-charcoal-800 dark:text-sand-200 text-xs md:text-sm">
+                          Total Fixed Expenses
+                        </td>
+                        <td className="py-2 px-1 text-right text-xs md:text-sm text-charcoal-600 dark:text-sand-300">
+                          {formatCurrency(yearlyFixedExpenses.reduce((sum, e) => sum + e.total, 0))}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
 
             {monthlyTrends.length > 1 && (
               <Card>
