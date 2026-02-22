@@ -14,6 +14,7 @@ use std::net::SocketAddr;
 use std::sync::Once;
 
 use axum::http::{HeaderName, HeaderValue};
+use payme::db::*;
 
 static INIT: Once = Once::new();
 
@@ -45,276 +46,26 @@ pub async fn create_test_pool() -> SqlitePool {
     pool
 }
 
-/// Run database migrations (copied from db/mod.rs to avoid circular deps)
-///
-/// NOTE: Keep this in sync with the production migrations in backend/src/db/mod.rs
-/// Both should have identical table schemas and ALTER TABLE statements
+/// Run database migrations
 async fn run_migrations(pool: &SqlitePool) {
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            savings REAL NOT NULL DEFAULT 0,
-            savings_goal REAL NOT NULL DEFAULT 0,
-            retirement_savings REAL NOT NULL DEFAULT 0,
-            recurring_wages_enabled INTEGER NOT NULL DEFAULT 1,
-            current_account_enabled INTEGER NOT NULL DEFAULT 1,
-            custom_savings_goals_enabled INTEGER NOT NULL DEFAULT 1,
-            fixed_expenses_enabled INTEGER NOT NULL DEFAULT 0,
-            payday INTEGER NOT NULL DEFAULT 21,
-            payday_mode_enabled INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create users table");
+    // Create all tables
+    for sql in get_table_creation_statements() {
+        sqlx::query(sql)
+            .execute(pool)
+            .await
+            .expect("Failed to execute table creation migration");
+    }
 
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS fixed_expenses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            label TEXT NOT NULL,
-            amount REAL NOT NULL,
-            auto_generate INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create fixed_expenses table");
+    // Run ALTER TABLE statements for schema consistency with defaults
+    for sql in get_alter_and_update_statements().iter().take(9) {
+        // Only run the user-related ALTER statements to ensure full schema
+        let _ = sqlx::query(sql).execute(pool).await;
+    }
 
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS budget_categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            label TEXT NOT NULL,
-            default_amount REAL NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create budget_categories table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS months (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            year INTEGER NOT NULL,
-            month INTEGER NOT NULL,
-            is_closed INTEGER NOT NULL DEFAULT 0,
-            closed_at TEXT,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            UNIQUE(user_id, year, month)
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create months table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS income_entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month_id INTEGER NOT NULL,
-            label TEXT NOT NULL,
-            amount REAL NOT NULL,
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create income_entries table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS monthly_budgets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month_id INTEGER NOT NULL,
-            category_id INTEGER NOT NULL,
-            allocated_amount REAL NOT NULL,
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE,
-            FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE CASCADE,
-            UNIQUE(month_id, category_id)
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create monthly_budgets table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month_id INTEGER NOT NULL,
-            category_id INTEGER NOT NULL,
-            description TEXT NOT NULL,
-            amount REAL NOT NULL,
-            spent_on TEXT NOT NULL,
-            savings_destination TEXT NOT NULL DEFAULT 'none',
-            recurring_item_id INTEGER,
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE,
-            FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create items table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS monthly_snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month_id INTEGER NOT NULL UNIQUE,
-            pdf_data BLOB NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create monthly_snapshots table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS monthly_fixed_expenses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month_id INTEGER NOT NULL,
-            fixed_expense_id INTEGER,
-            label TEXT NOT NULL,
-            amount REAL NOT NULL,
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create monthly_fixed_expenses table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS recurring_wages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            amount REAL NOT NULL,
-            label TEXT NOT NULL DEFAULT 'Wages',
-            effective_from TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create recurring_wages table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS monthly_current_account (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month_id INTEGER NOT NULL UNIQUE,
-            balance REAL NOT NULL DEFAULT 0,
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create monthly_current_account table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS recurring_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            category_id INTEGER NOT NULL,
-            description TEXT NOT NULL,
-            amount REAL NOT NULL,
-            day_of_month INTEGER NOT NULL,
-            savings_destination TEXT NOT NULL DEFAULT 'none',
-            is_active INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (category_id) REFERENCES budget_categories(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create recurring_items table");
-
-    sqlx::query(
-        r#"
-        CREATE TABLE IF NOT EXISTS monthly_savings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month_id INTEGER NOT NULL UNIQUE,
-            savings REAL NOT NULL DEFAULT 0,
-            retirement_savings REAL NOT NULL DEFAULT 0,
-            savings_goal REAL NOT NULL DEFAULT 0,
-            FOREIGN KEY (month_id) REFERENCES months(id) ON DELETE CASCADE
-        )
-        "#,
-    )
-    .execute(pool)
-    .await
-    .expect("Failed to create monthly_savings table");
-
-    // Create indexes for better query performance (matching db/mod.rs)
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_items_month_id ON items(month_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_items_category_id ON items(category_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_items_month_category ON items(month_id, category_id)",
-    )
-    .execute(pool)
-    .await;
-    let _ = sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id ON budget_categories(user_id)",
-    )
-    .execute(pool)
-    .await;
-    let _ = sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_fixed_expenses_user_id ON fixed_expenses(user_id)",
-    )
-    .execute(pool)
-    .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_months_user_id ON months(user_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_income_entries_month_id ON income_entries(month_id)",
-    )
-    .execute(pool)
-    .await;
-    let _ = sqlx::query(
-        "CREATE INDEX IF NOT EXISTS idx_monthly_budgets_month_id ON monthly_budgets(month_id)",
-    )
-    .execute(pool)
-    .await;
-
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_fixed_expenses_month_id ON monthly_fixed_expenses(month_id)")
-        .execute(pool)
-        .await;
-    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_monthly_fixed_expenses_fixed_expense_id ON monthly_fixed_expenses(fixed_expense_id)")
-        .execute(pool)
-        .await;
+    // Create indexes
+    for sql in get_index_statements() {
+        let _ = sqlx::query(sql).execute(pool).await;
+    }
 }
 
 /// Create a test user and return their ID
