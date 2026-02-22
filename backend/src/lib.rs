@@ -22,7 +22,7 @@ use tower_http::cors::CorsLayer;
 use config::Config;
 use handlers::{
     auth, backups, budget, export, fixed_expenses, health, income, items, monthly_data, months,
-    recurring_items, savings, stats, stocks,
+    recurring_items, retirement_breakdown, savings, stats, stocks,
 };
 use middleware::auth::auth_middleware;
 use middleware::request_id::request_id_middleware;
@@ -222,6 +222,22 @@ pub fn create_app_with_config(pool: SqlitePool, config: Config) -> Router {
         .route(
             "/api/retirement-savings",
             put(savings::update_retirement_savings),
+        )
+        .route(
+            "/api/retirement-breakdown",
+            get(retirement_breakdown::get_retirement_breakdown),
+        )
+        .route(
+            "/api/retirement-breakdown",
+            post(retirement_breakdown::create_retirement_breakdown_item),
+        )
+        .route(
+            "/api/retirement-breakdown/{id}",
+            put(retirement_breakdown::update_retirement_breakdown_item),
+        )
+        .route(
+            "/api/retirement-breakdown/{id}",
+            delete(retirement_breakdown::delete_retirement_breakdown_item),
         )
         .route("/api/export/json", get(export::export_json))
         .route("/api/import/json", post(export::import_json))

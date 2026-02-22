@@ -362,6 +362,41 @@ export const api = {
       }),
   },
 
+  retirementBreakdown: {
+    list: () => request<RetirementBreakdownItem[]>("/retirement-breakdown"),
+    create: (data: {
+      label: string;
+      amount: number;
+      type: string;
+      ticker?: string;
+      quantity?: number;
+      current_price?: number;
+      last_updated?: number;
+    }) =>
+      request<RetirementBreakdownItem>("/retirement-breakdown", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (
+      id: number,
+      data: {
+        label: string;
+        amount: number;
+        type: string;
+        ticker?: string;
+        quantity?: number;
+        current_price?: number;
+        last_updated?: number;
+      }
+    ) =>
+      request<RetirementBreakdownItem>(`/retirement-breakdown/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }),
+    delete: (id: number) =>
+      request<void>(`/retirement-breakdown/${id}`, { method: "DELETE" }),
+  },
+
   recurringWages: {
     list: () => request<RecurringWage[]>("/recurring-wages"),
     getCurrent: () => request<RecurringWage>("/recurring-wages/current"),
@@ -574,6 +609,20 @@ export interface CurrentAccountBalance {
   id: number;
   month_id: number;
   balance: number;
+}
+
+export interface RetirementBreakdownItem {
+  id: number;
+  user_id: number;
+  label: string;
+  amount: number;
+  type: string;
+  ticker?: string;
+  quantity?: number;
+  current_price?: number;
+  last_updated?: number;
+  created_at: string;
+  updated_at: string;
 }
 
 

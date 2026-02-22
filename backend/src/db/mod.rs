@@ -412,5 +412,49 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await;
 
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS retirement_breakdown_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            label TEXT NOT NULL,
+            amount REAL NOT NULL,
+            item_type TEXT NOT NULL DEFAULT 'custom',
+            ticker TEXT,
+            quantity REAL,
+            current_price REAL,
+            last_updated INTEGER,
+            created_at TEXT,
+            updated_at TEXT,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Migration: Add missing columns if they don't exist (for databases created before these columns were added)
+    // Use nullable columns since SQLite doesn't support DEFAULT with datetime() in ALTER TABLE
+    let _ = sqlx::query("ALTER TABLE retirement_breakdown_items ADD COLUMN created_at TEXT")
+        .execute(pool)
+        .await;
+
+    let _ = sqlx::query("ALTER TABLE retirement_breakdown_items ADD COLUMN updated_at TEXT")
+        .execute(pool)
+        .await;
+    
+    // Update existing rows with current timestamp
+    let _ = sqlx::query("UPDATE retirement_breakdown_items SET created_at = datetime('now') WHERE created_at IS NULL")
+        .execute(pool)
+        .await;
+    
+    let _ = sqlx::query("UPDATE retirement_breakdown_items SET updated_at = datetime('now') WHERE updated_at IS NULL")
+        .execute(pool)
+        .await;
+
+    let _ = sqlx::query("CREATE INDEX IF NOT EXISTS idx_retirement_breakdown_user_id ON retirement_breakdown_items(user_id)")
+        .execute(pool)
+        .await;
+
     Ok(())
 }

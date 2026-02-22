@@ -170,3 +170,19 @@ pub struct CurrentAccountBalance {
     pub month_id: i64,
     pub balance: f64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
+pub struct RetirementBreakdownItem {
+    pub id: i64,
+    pub user_id: i64,
+    pub label: String,
+    pub amount: f64,
+    #[serde(rename = "type")]
+    pub item_type: String,
+    pub ticker: Option<String>,
+    pub quantity: Option<f64>,
+    pub current_price: Option<f64>,
+    pub last_updated: Option<i64>,
+    pub created_at: String,
+    pub updated_at: String,
+}

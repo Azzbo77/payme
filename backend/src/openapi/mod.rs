@@ -11,11 +11,12 @@ use crate::handlers::{
     income::{CreateIncome, UpdateIncome},
     items::{CreateItem, UpdateItem},
     monthly_data::{CreateMonthlyFixedExpense, UpdateMonthlyFixedExpense, UpdateMonthlySavings},
+    retirement_breakdown::{CreateRetirementBreakdownItem, UpdateRetirementBreakdownItem},
     savings::{RetirementSavingsResponse, SavingsResponse, UpdateRetirementSavings, UpdateSavings},
 };
 use crate::models::{
     BudgetCategory, CategoryStats, FixedExpense, IncomeEntry, Item, ItemWithCategory, Month,
-    MonthSummary, MonthlyBudget, MonthlyFixedExpense, MonthlySavings, MonthlyStats, StatsResponse,
+    MonthSummary, MonthlyBudget, MonthlyFixedExpense, MonthlySavings, MonthlyStats, RetirementBreakdownItem, StatsResponse,
 };
 
 #[derive(OpenApi)]
@@ -62,6 +63,10 @@ use crate::models::{
         crate::handlers::savings::update_savings,
         crate::handlers::savings::get_retirement_savings,
         crate::handlers::savings::update_retirement_savings,
+        crate::handlers::retirement_breakdown::get_retirement_breakdown,
+        crate::handlers::retirement_breakdown::create_retirement_breakdown_item,
+        crate::handlers::retirement_breakdown::update_retirement_breakdown_item,
+        crate::handlers::retirement_breakdown::delete_retirement_breakdown_item,
         crate::handlers::stats::get_stats
     ),
     components(schemas(
@@ -96,6 +101,9 @@ use crate::models::{
         SavingsResponse,
         UpdateSavings,
         UpdateRetirementSavings,
+        RetirementBreakdownItem,
+        CreateRetirementBreakdownItem,
+        UpdateRetirementBreakdownItem,
         UserExport,
         CategoryExport,
         MonthExport,

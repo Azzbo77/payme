@@ -1,19 +1,11 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, Pencil, Check, X } from "lucide-react";
-import { api } from "../api/client";
+import { api, RetirementBreakdownItem } from "../api/client";
 import { Card } from "./ui/Card";
 import { Input } from "./ui/Input";
 import { useCardEdit } from "../hooks/useCardEdit";
 import { useCurrency } from "../context/CurrencyContext";
 import { convertUSDPrice } from "../services/stockService";
-
-interface BreakdownItem {
-  id: string;
-  label: string;
-  amount: number;
-}
-
-const STORAGE_KEY = "retirementBreakdown";
 
 interface RetirementSavingsCardProps {
   monthId?: number;
@@ -24,17 +16,7 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
   const [amount, setAmount] = useState<number>(0);
   const [conversionRate, setConversionRate] = useState<number>(1);
   const { formatCurrency, currency } = useCurrency();
-  const [breakdownItems, setBreakdownItems] = useState<BreakdownItem[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return [];
-      }
-    }
-    return [];
-  });
+  const [breakdownItems, setBreakdownItems] = useState<RetirementBreakdownItem[]>([]);
 
   // Fetch conversion rate when currency changes
   useEffect(() => {
@@ -63,20 +45,23 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
     },
   });
 
+  // Load retirement savings and breakdown items on mount and when refreshTrigger changes
   useEffect(() => {
-    api.retirementSavings.get().then((res) => setAmount(res.retirement_savings));
-  }, [refreshTrigger]);
-
-  useEffect(() => {
-    const handleBreakdownUpdate = (event: Event) => {
-      if (event instanceof CustomEvent) {
-        setBreakdownItems(event.detail);
+    const loadData = async () => {
+      try {
+        const [savingsRes, breakdownRes] = await Promise.all([
+          api.retirementSavings.get(),
+          api.retirementBreakdown.list(),
+        ]);
+        setAmount(savingsRes.retirement_savings);
+        setBreakdownItems(breakdownRes);
+      } catch (err) {
+        console.error("Failed to load retirement data:", err);
       }
     };
 
-    window.addEventListener("retirementBreakdownUpdated", handleBreakdownUpdate);
-    return () => window.removeEventListener("retirementBreakdownUpdated", handleBreakdownUpdate);
-  }, []);
+    loadData();
+  }, [refreshTrigger]);
 
   const breakdownTotal = breakdownItems.reduce((sum, item) => sum + item.amount, 0);
   const totalAmountUSD = amount + breakdownTotal;

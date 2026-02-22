@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Printer, Download, Calendar } from "lucide-react";
 import { Layout } from "../components/Layout";
-import { api, MonthSummary, StatsResponse, Month } from "../api/client";
+import { api, MonthSummary, StatsResponse, Month, RetirementBreakdownItem } from "../api/client";
 import { useCurrency } from "../context/CurrencyContext";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -48,9 +48,7 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
   const contentRef = useRef<HTMLDivElement>(null);
   
   // Retirement breakdown state
-  const [retirementBreakdown, setRetirementBreakdown] = useState<
-    Array<{ id: string; label: string; amount: number; type?: "custom" | "stock"; ticker?: string; quantity?: number; currentPrice?: number; lastUpdated?: number }>
-  >([]);
+  const [retirementBreakdown, setRetirementBreakdown] = useState<RetirementBreakdownItem[]>([]);
   const [conversionRate, setConversionRate] = useState<number>(1);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
   
@@ -84,16 +82,9 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
     const loadRetirementBreakdown = async () => {
       setBreakdownLoading(true);
       try {
-        // Load from localStorage
-        const stored = localStorage.getItem("retirementBreakdown");
-        if (stored) {
-          try {
-            const items = JSON.parse(stored);
-            setRetirementBreakdown(items);
-          } catch {
-            // Failed to parse, will show empty breakdown
-          }
-        }
+        // Load from API
+        const items = await api.retirementBreakdown.list();
+        setRetirementBreakdown(items);
 
         // Fetch conversion rate
         if (currency.code === "USD") {
@@ -106,6 +97,9 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
             setConversionRate(1);
           }
         }
+      } catch (err) {
+        console.error("Failed to load retirement breakdown:", err);
+        // Continue without breakdown data
       } finally {
         setBreakdownLoading(false);
       }
@@ -551,9 +545,9 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
                           >
                             <td className="py-2 px-1 text-charcoal-800 dark:text-sand-200 text-xs md:text-sm font-medium">
                               {item.label}
-                              {isStock && item.lastUpdated && (
+                              {isStock && item.last_updated && (
                                 <div className="text-xs text-charcoal-500 dark:text-charcoal-400">
-                                  Updated: {new Date(item.lastUpdated).toLocaleDateString()}
+                                  Updated: {new Date(item.last_updated).toLocaleDateString()}
                                 </div>
                               )}
                             </td>
@@ -561,7 +555,7 @@ export function SummaryPage({ onBack, onSettingsClick, initialMonthId }: Summary
                               {isStock ? item.quantity : "—"}
                             </td>
                             <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-charcoal-600 dark:text-sand-300">
-                              {isStock ? formatUSDPriceInCurrency(item.currentPrice || 0) : "—"}
+                              {isStock ? formatUSDPriceInCurrency(item.current_price || 0) : "—"}
                             </td>
                             <td className="py-2 px-1 text-right font-medium text-xs md:text-sm whitespace-nowrap text-sage-600 dark:text-sage-400">
                               {isStock ? formatUSDPriceInCurrency(item.amount || 0) : formatCurrency(item.amount)}
