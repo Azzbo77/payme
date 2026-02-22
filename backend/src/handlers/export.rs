@@ -16,6 +16,8 @@ pub struct UserExport {
     pub fixed_expenses: Vec<FixedExpenseExport>,
     pub categories: Vec<CategoryExport>,
     pub recurring_wages: Vec<RecurringWageExport>,
+    pub recurring_items: Vec<RecurringItemExport>,
+    pub retirement_breakdown: Vec<RetirementBreakdownItemExport>,
     pub months: Vec<MonthExport>,
 }
 
@@ -89,6 +91,27 @@ pub struct ItemExport {
     pub amount: f64,
     pub spent_on: String,
     pub savings_destination: String,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RecurringItemExport {
+    pub category_label: String,
+    pub description: String,
+    pub amount: f64,
+    pub day_of_month: i32,
+    pub savings_destination: String,
+    pub is_active: bool,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+pub struct RetirementBreakdownItemExport {
+    pub label: String,
+    pub amount: f64,
+    #[serde(rename = "type")]
+    pub item_type: String,
+    pub ticker: Option<String>,
+    pub quantity: Option<f64>,
+    pub current_price: Option<f64>,
 }
 
 #[utoipa::path(
@@ -272,6 +295,27 @@ pub async fn export_json(
         });
     }
 
+    // Get recurring items
+    let recurring_items_data: Vec<(String, String, f64, i32, String, bool)> = sqlx::query_as(
+        r#"
+        SELECT bc.label, ri.description, ri.amount, ri.day_of_month, ri.savings_destination, ri.is_active
+        FROM recurring_items ri
+        JOIN budget_categories bc ON ri.category_id = bc.id
+        WHERE ri.user_id = ?
+        "#,
+    )
+    .bind(claims.sub)
+    .fetch_all(&pool)
+    .await?;
+
+    // Get retirement breakdown items
+    let retirement_breakdown_items: Vec<(String, f64, String, Option<String>, Option<f64>, Option<f64>)> = sqlx::query_as(
+        "SELECT label, amount, item_type, ticker, quantity, current_price FROM retirement_breakdown_items WHERE user_id = ?",
+    )
+    .bind(claims.sub)
+    .fetch_all(&pool)
+    .await?;
+
     Ok(Json(UserExport {
         version: 2,
         savings: Some(savings),
@@ -301,6 +345,32 @@ pub async fn export_json(
             })
             .collect(),
         months: month_exports,
+        recurring_items: recurring_items_data
+            .into_iter()
+            .map(|(category_label, description, amount, day_of_month, savings_destination, is_active)| {
+                RecurringItemExport {
+                    category_label,
+                    description,
+                    amount,
+                    day_of_month,
+                    savings_destination,
+                    is_active,
+                }
+            })
+            .collect(),
+        retirement_breakdown: retirement_breakdown_items
+            .into_iter()
+            .map(|(label, amount, item_type, ticker, quantity, current_price)| {
+                RetirementBreakdownItemExport {
+                    label,
+                    amount,
+                    item_type,
+                    ticker,
+                    quantity,
+                    current_price,
+                }
+            })
+            .collect(),
     }))
 }
 
@@ -375,6 +445,14 @@ pub async fn import_json(
         .bind(claims.sub)
         .execute(&mut *tx)
         .await?;
+    sqlx::query("DELETE FROM recurring_items WHERE user_id = ?")
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("DELETE FROM retirement_breakdown_items WHERE user_id = ?")
+        .bind(claims.sub)
+        .execute(&mut *tx)
+        .await?;
 
     if let Some(savings) = data.savings {
         sqlx::query("UPDATE users SET savings = ? WHERE id = ?")
@@ -444,6 +522,40 @@ pub async fn import_json(
         .fetch_one(&mut *tx)
         .await?;
         category_map.insert(cat.label.clone(), id);
+    }
+
+    // Import recurring items
+    for recurring_item in &data.recurring_items {
+        if let Some(&cat_id) = category_map.get(&recurring_item.category_label) {
+            sqlx::query(
+                "INSERT INTO recurring_items (user_id, category_id, description, amount, day_of_month, savings_destination, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(claims.sub)
+            .bind(cat_id)
+            .bind(&recurring_item.description)
+            .bind(recurring_item.amount)
+            .bind(recurring_item.day_of_month)
+            .bind(&recurring_item.savings_destination)
+            .bind(if recurring_item.is_active { 1 } else { 0 })
+            .execute(&mut *tx)
+            .await?;
+        }
+    }
+
+    // Import retirement breakdown items
+    for retirement_item in &data.retirement_breakdown {
+        sqlx::query(
+            "INSERT INTO retirement_breakdown_items (user_id, label, amount, item_type, ticker, quantity, current_price) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(claims.sub)
+        .bind(&retirement_item.label)
+        .bind(retirement_item.amount)
+        .bind(&retirement_item.item_type)
+        .bind(&retirement_item.ticker)
+        .bind(retirement_item.quantity)
+        .bind(retirement_item.current_price)
+        .execute(&mut *tx)
+        .await?;
     }
 
     for month_data in &data.months {
