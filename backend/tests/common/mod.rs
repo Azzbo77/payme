@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2,
@@ -15,6 +13,7 @@ use std::sync::Once;
 
 use axum::http::{HeaderName, HeaderValue};
 use payme::db::*;
+use payme::middleware::auth::{TokenType, Claims};
 
 static INIT: Once = Once::new();
 
@@ -25,13 +24,6 @@ fn init_test_env() {
             std::env::set_var("JWT_SECRET", "test-secret-key");
         }
     });
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct Claims {
-    pub sub: i64,
-    pub username: String,
-    pub exp: usize,
 }
 
 /// Create an in-memory SQLite pool and run migrations
@@ -87,14 +79,15 @@ pub async fn create_test_user(pool: &SqlitePool, username: &str, password: &str)
     .expect("Failed to create test user")
 }
 
-/// Generate a JWT token for a user
+/// Generate an access JWT token for a user (15 minutes)
 pub fn generate_token(user_id: i64, username: &str) -> String {
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "test-secret-key".to_string());
 
     let claims = Claims {
         sub: user_id,
         username: username.to_string(),
-        exp: (Utc::now() + Duration::days(30)).timestamp() as usize,
+        exp: (Utc::now() + Duration::minutes(15)).timestamp() as usize,
+        token_type: TokenType::Access,
     };
 
     encode(
@@ -105,6 +98,25 @@ pub fn generate_token(user_id: i64, username: &str) -> String {
     .expect("Failed to generate token")
 }
 
+/// Generate a refresh JWT token for a user (30 days)
+pub fn generate_refresh_token(user_id: i64, username: &str) -> String {
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "test-secret-key".to_string());
+
+    let claims = Claims {
+        sub: user_id,
+        username: username.to_string(),
+        exp: (Utc::now() + Duration::days(30)).timestamp() as usize,
+        token_type: TokenType::Refresh,
+    };
+
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .expect("Failed to generate refresh token")
+}
+
 /// Generate an expired JWT token for testing
 pub fn generate_expired_token(user_id: i64, username: &str) -> String {
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "test-secret-key".to_string());
@@ -113,6 +125,7 @@ pub fn generate_expired_token(user_id: i64, username: &str) -> String {
         sub: user_id,
         username: username.to_string(),
         exp: (Utc::now() - Duration::days(1)).timestamp() as usize,
+        token_type: TokenType::Access,
     };
 
     encode(

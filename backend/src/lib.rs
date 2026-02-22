@@ -43,6 +43,7 @@ pub fn create_app_with_config(pool: SqlitePool, config: Config) -> Router {
         .route("/health", get(health::health_check))
         .route("/api/auth/register", post(auth::register))
         .route("/api/auth/login", post(auth::login))
+        .route("/api/auth/refresh", post(auth::refresh))
         .layer(Extension(ip_rate_limiter));
 
     let rate_limiter = Arc::new(RateLimitManager::new(STOCK_API_RATE_LIMIT));

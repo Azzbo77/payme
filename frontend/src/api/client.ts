@@ -2,9 +2,46 @@ import { ApiError, parseApiError } from "./errors";
 
 const BASE_URL = "/api";
 
+// Track if we're currently refreshing to avoid duplicate refresh calls
+let isRefreshing = false;
+let refreshPromise: Promise<void> | null = null;
+
+/**
+ * Refresh the access token using the refresh token
+ */
+async function refreshAccessToken(): Promise<void> {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        // Refresh failed, user needs to log in again
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+        throw new ApiError("Session expired", "auth", 401);
+      }
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retried = false
 ): Promise<T> {
   let response: Response;
   
@@ -21,6 +58,19 @@ async function request<T>(
     // Network error
     const message = err instanceof Error ? err.message : "Network error";
     throw new ApiError(message, "network", 0);
+  }
+
+  // Handle 401 - attempt to refresh token and retry
+  if (response.status === 401 && !retried && !endpoint.includes("/auth/")) {
+    try {
+      await refreshAccessToken();
+      // Retry the request with the new token
+      return request<T>(endpoint, options, true);
+    } catch {
+      // Refresh failed, let the error propagate
+      const requestId = response.headers.get("x-request-id") || undefined;
+      throw parseApiError(401, null, requestId);
+    }
   }
 
   if (!response.ok) {
@@ -57,6 +107,7 @@ export const api = {
         body: JSON.stringify({ username, password }),
       }),
     logout: () => request<void>("/auth/logout", { method: "POST" }),
+    refresh: () => request<{ id: number; username: string }>("/auth/refresh", { method: "POST" }),
     me: () => request<{ id: number; username: string }>("/auth/me"),
     changeUsername: (newUsername: string) =>
       request<{ id: number; username: string }>("/auth/change-username", {

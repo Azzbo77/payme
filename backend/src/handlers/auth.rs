@@ -19,7 +19,7 @@ use utoipa::ToSchema;
 use validator::Validate;
 
 use crate::error::PaymeError;
-use crate::middleware::auth::Claims;
+use crate::middleware::auth::{Claims, TokenType};
 use crate::ratelimit::IPRateLimiter;
 
 #[derive(Deserialize, ToSchema, Validate)]
@@ -126,22 +126,46 @@ pub async fn login(
         .map_err(|_| PaymeError::Unauthorized)?;
 
     let secret = std::env::var("JWT_SECRET")
-        .unwrap_or_else(|_| "payme-secret-key-change-in-production".to_string());
+        .expect("JWT_SECRET environment variable is required");
 
-    let claims = Claims {
+    // Create access token (15 minutes)
+    let access_claims = Claims {
         sub: user.0,
         username: user.1.clone(),
-        exp: (Utc::now() + Duration::days(30)).timestamp() as usize,
+        exp: (Utc::now() + Duration::minutes(15)).timestamp() as usize,
+        token_type: TokenType::Access,
     };
 
-    let token = encode(
+    let access_token = encode(
         &Header::default(),
-        &claims,
+        &access_claims,
         &EncodingKey::from_secret(secret.as_bytes()),
     )
     .map_err(|e| PaymeError::Internal(e.to_string()))?;
 
-    let cookie = Cookie::build(("token", token))
+    // Create refresh token (30 days)
+    let refresh_claims = Claims {
+        sub: user.0,
+        username: user.1.clone(),
+        exp: (Utc::now() + Duration::days(30)).timestamp() as usize,
+        token_type: TokenType::Refresh,
+    };
+
+    let refresh_token = encode(
+        &Header::default(),
+        &refresh_claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .map_err(|e| PaymeError::Internal(e.to_string()))?;
+
+    let access_cookie = Cookie::build(("access_token", access_token))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .max_age(time::Duration::minutes(15))
+        .build();
+
+    let refresh_cookie = Cookie::build(("refresh_token", refresh_token))
         .path("/")
         .http_only(true)
         .same_site(SameSite::Lax)
@@ -149,7 +173,7 @@ pub async fn login(
         .build();
 
     Ok((
-        jar.add(cookie),
+        jar.add(access_cookie).add(refresh_cookie),
         Json(AuthResponse {
             id: user.0,
             username: user.1,
@@ -169,14 +193,96 @@ pub async fn login(
     description = "Clears the authentication token by setting the session cookie to expire immediately."
 )]
 pub async fn logout(jar: CookieJar) -> impl IntoResponse {
-    let cookie = Cookie::build(("token", ""))
+    let access_cookie = Cookie::build(("access_token", ""))
         .path("/")
         .http_only(true)
         .max_age(time::Duration::seconds(0))
         .build();
 
-    jar.add(cookie)
+    let refresh_cookie = Cookie::build(("refresh_token", ""))
+        .path("/")
+        .http_only(true)
+        .max_age(time::Duration::seconds(0))
+        .build();
+
+    jar.add(access_cookie).add(refresh_cookie)
 }
+
+#[utoipa::path(
+    post,
+    path = "/api/auth/refresh",
+    responses(
+        (status = 200, description = "Token refreshed successfully", body = AuthResponse),
+        (status = 401, description = "Invalid or expired refresh token"),
+        (status = 500, description = "Internal server error")
+    ),
+    tag = "Auth",
+    summary = "Refresh access token",
+    description = "Uses a valid refresh token to issue a new access token."
+)]
+pub async fn refresh(
+    State(pool): State<SqlitePool>,
+    jar: CookieJar,
+) -> Result<impl IntoResponse, PaymeError> {
+    let refresh_token = jar
+        .get("refresh_token")
+        .map(|c| c.value().to_string())
+        .ok_or(PaymeError::Unauthorized)?;
+
+    let secret = std::env::var("JWT_SECRET")
+        .expect("JWT_SECRET environment variable is required");
+
+    // Verify refresh token
+    let token_data = jsonwebtoken::decode::<Claims>(
+        &refresh_token,
+        &jsonwebtoken::DecodingKey::from_secret(secret.as_bytes()),
+        &jsonwebtoken::Validation::default(),
+    )
+    .map_err(|_| PaymeError::Unauthorized)?;
+
+    // Check it's a refresh token
+    if token_data.claims.token_type != TokenType::Refresh {
+        return Err(PaymeError::Unauthorized);
+    }
+
+    // Verify user still exists
+    let user: (i64, String) = sqlx::query_as("SELECT id, username FROM users WHERE id = ?")
+        .bind(token_data.claims.sub)
+        .fetch_optional(&pool)
+        .await?
+        .ok_or(PaymeError::Unauthorized)?;
+
+    // Generate new access token (15 minutes)
+    let new_access_claims = Claims {
+        sub: user.0,
+        username: user.1.clone(),
+        exp: (Utc::now() + Duration::minutes(15)).timestamp() as usize,
+        token_type: TokenType::Access,
+    };
+
+    let new_access_token = encode(
+        &Header::default(),
+        &new_access_claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .map_err(|e| PaymeError::Internal(e.to_string()))?;
+
+    let access_cookie = Cookie::build(("access_token", new_access_token))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .max_age(time::Duration::minutes(15))
+        .build();
+
+    Ok((
+        jar.add(access_cookie),
+        Json(AuthResponse {
+            id: user.0,
+            username: user.1,
+        }),
+    ))
+}
+
 
 #[utoipa::path(
     get,
@@ -373,14 +479,20 @@ pub async fn clear_all_data(
         .execute(&pool)
         .await?;
 
-    let cookie = Cookie::build(("token", ""))
+    let access_cookie = Cookie::build(("access_token", ""))
+        .path("/")
+        .http_only(true)
+        .max_age(time::Duration::seconds(0))
+        .build();
+
+    let refresh_cookie = Cookie::build(("refresh_token", ""))
         .path("/")
         .http_only(true)
         .max_age(time::Duration::seconds(0))
         .build();
 
     Ok((
-        jar.add(cookie),
+        jar.add(access_cookie).add(refresh_cookie),
         Json(serde_json::json!({"message": "All data cleared"})),
     ))
 }

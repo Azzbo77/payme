@@ -10,6 +10,23 @@ pub struct Claims {
     pub sub: i64,
     pub username: String,
     pub exp: usize,
+    #[serde(default)]
+    pub token_type: TokenType,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TokenType {
+    #[serde(rename = "access")]
+    Access,
+    #[serde(rename = "refresh")]
+    Refresh,
+}
+
+impl Default for TokenType {
+    fn default() -> Self {
+        TokenType::Access
+    }
 }
 
 pub async fn auth_middleware(
@@ -18,8 +35,12 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Result<Response, PaymeError> {
     let token = jar
-        .get("token")
+        .get("access_token")
         .map(|c| c.value().to_string())
+        .or_else(|| {
+            jar.get("token")
+                .map(|c| c.value().to_string())
+        })
         .or_else(|| {
             request
                 .headers()
@@ -38,6 +59,11 @@ pub async fn auth_middleware(
         &Validation::default(),
     )
     .map_err(|_| PaymeError::Unauthorized)?;
+
+    // Verify this is an access token, not a refresh token
+    if token_data.claims.token_type != TokenType::Access {
+        return Err(PaymeError::Unauthorized);
+    }
 
     request.extensions_mut().insert(token_data.claims);
     Ok(next.run(request).await)

@@ -17,6 +17,31 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Set up automatic token refresh timer
+ * Refreshes every 10 minutes (access token lasts 15 minutes)
+ * This ensures we always have a valid access token during active use
+ */
+async function setupTokenRefreshTimer() {
+  // Refresh token every 10 minutes (access token is 15 minutes)
+  // This ensures we always have a valid access token
+  const REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+  const refresh = async () => {
+    try {
+      await api.auth.refresh();
+    } catch {
+      // Refresh failed, user will be logged out on next API call
+      console.debug("Token refresh failed");
+    }
+  };
+
+  // Set up periodic refresh
+  const interval = setInterval(refresh, REFRESH_INTERVAL);
+
+  return () => clearInterval(interval);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     api.auth
       .me()
-      .then(setUser)
+      .then((user) => {
+        setUser(user);
+        // Set up token refresh when user is authenticated
+        setupTokenRefreshTimer();
+      })
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
@@ -32,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (username: string, password: string) => {
     const user = await api.auth.login(username, password);
     setUser(user);
+    // Set up token refresh after login
+    setupTokenRefreshTimer();
   };
 
   const register = async (username: string, password: string) => {
