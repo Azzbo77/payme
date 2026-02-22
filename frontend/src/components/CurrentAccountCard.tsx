@@ -1,7 +1,7 @@
 import { useState, useLayoutEffect } from "react";
 import { Banknote, Pencil, Check, X, Send } from "lucide-react";
 import { api, CurrentAccountBalance } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { useCurrency } from "../context/CurrencyContext";
 import { useCardEdit } from "../hooks/useCardEdit";
@@ -58,21 +58,21 @@ export function CurrentAccountCard({
   const isNegative = balance < 0;
 
   return (
-    <Card className="!p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Banknote 
-            size={16} 
-            className={isNegative 
-              ? "text-terracotta-600 dark:text-terracotta-400" 
-              : "text-blue-600 dark:text-blue-400"
-            } 
-          />
-          <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
-            Current Account
-          </span>
-        </div>
-        {!isReadOnly && (
+    <>
+    <CollapsibleCard
+      id="currentAccountCard"
+      title="Current Account"
+      icon={
+        <Banknote 
+          size={16} 
+          className={isNegative 
+            ? "text-terracotta-600 dark:text-terracotta-400" 
+            : "text-blue-600 dark:text-blue-400"
+          } 
+        />
+      }
+      actions={
+        !isReadOnly ? (
           <button
             onClick={startEdit}
             className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
@@ -80,9 +80,9 @@ export function CurrentAccountCard({
           >
             <Pencil size={14} />
           </button>
-        )}
-      </div>
-
+        ) : null
+      }
+    >
       {isEditing ? (
         <div className="space-y-2">
           <Input
@@ -135,21 +135,22 @@ export function CurrentAccountCard({
           )}
         </div>
       )}
+    </CollapsibleCard>
 
-      <TransferFromCurrentModal
-        isOpen={showTransferModal}
-        onClose={() => setShowTransferModal(false)}
-        monthId={monthId}
-        currentBalance={balance}
-        onTransferSuccess={async () => {
-          const updated = await api.monthlyCurrentAccount.get(monthId);
-          setBalance(updated.balance);
-          onUpdate?.(updated.balance);
-          if (onTransferComplete) {
-            await onTransferComplete();
-          }
-        }}
-      />
-    </Card>
+    <TransferFromCurrentModal
+      isOpen={showTransferModal}
+      onClose={() => setShowTransferModal(false)}
+      monthId={monthId}
+      currentBalance={balance}
+      onTransferSuccess={async () => {
+        const updated = await api.monthlyCurrentAccount.get(monthId);
+        setBalance(updated.balance);
+        onUpdate?.(updated.balance);
+        if (onTransferComplete) {
+          await onTransferComplete();
+        }
+      }}
+    />
+    </>
   );
 }

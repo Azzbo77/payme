@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Edit2, Check, X, Loader } from "lucide-react";
 import { IncomeEntry, api } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
@@ -103,21 +103,20 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
 
   return (
     <>
-      <Card>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-          Income
-        </h3>
-        {!isReadOnly && !isAdding && (
-          <button
-            onClick={() => setIsAdding(true)}
-            className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
-          >
-            <Plus size={16} />
-          </button>
-        )}
-      </div>
-
+      <CollapsibleCard
+        id="incomeSection"
+        title="Income"
+        actions={
+          !isReadOnly && !isAdding ? (
+            <button
+              onClick={() => setIsAdding(true)}
+              className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
+            >
+              <Plus size={16} />
+            </button>
+          ) : null
+        }
+      >
       <div className="space-y-3">
         {entries.map((entry) => (
           <div key={entry.id}>
@@ -232,7 +231,7 @@ export function IncomeSection({ monthId, entries, isReadOnly, onUpdate }: Income
           </div>
         )}
       </div>
-    </Card>
+      </CollapsibleCard>
 
     <ConfirmModal
       isOpen={deleteConfirmId !== null}

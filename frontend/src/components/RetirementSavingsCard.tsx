@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { TrendingUp, Pencil, Check, X } from "lucide-react";
 import { api, RetirementBreakdownItem } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { useCardEdit } from "../hooks/useCardEdit";
 import { useCurrency } from "../context/CurrencyContext";
@@ -68,50 +68,50 @@ export function RetirementSavingsCard({ refreshTrigger }: RetirementSavingsCardP
   const totalAmount = totalAmountUSD * conversionRate;
 
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs text-charcoal-500 dark:text-charcoal-400 mb-1">
-            Retirement Savings
+    <CollapsibleCard
+      id="retirementSavingsCard"
+      title="Retirement Savings"
+      icon={<TrendingUp size={16} className="text-sage-600 dark:text-sage-400" />}
+      actions={
+        !isEditing && (
+          <button
+            onClick={startEdit}
+            className="p-1 text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-200 transition-colors rounded"
+          >
+            <Pencil size={14} />
+          </button>
+        )
+      }
+    >
+      <div className="flex items-center gap-1">
+        {isEditing ? (
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="w-28 !py-1"
+              autoFocus
+            />
+            <button
+              onClick={saveEdit}
+              className="p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-sage-900 transition-colors rounded"
+            >
+              <Check size={16} />
+            </button>
+            <button
+              onClick={cancelEdit}
+              className="p-1 text-charcoal-400 hover:bg-sand-100 dark:hover:bg-charcoal-800 transition-colors rounded"
+            >
+              <X size={16} />
+            </button>
           </div>
-          {isEditing ? (
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                className="w-28 !py-1"
-                autoFocus
-              />
-              <button
-                onClick={saveEdit}
-                className="p-1 text-sage-600 hover:bg-sage-100 dark:hover:bg-sage-900 transition-colors rounded"
-              >
-                <Check size={16} />
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="p-1 text-charcoal-400 hover:bg-sand-100 dark:hover:bg-charcoal-800 transition-colors rounded"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1">
-              <span className="text-xl font-semibold text-sage-600 dark:text-sage-400">
-                {formatCurrency(totalAmount)}
-              </span>
-              <button
-                onClick={startEdit}
-                className="p-1 text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-200 transition-colors rounded"
-              >
-                <Pencil size={14} />
-              </button>
-            </div>
-          )}
-        </div>
-        <TrendingUp size={20} className="text-sage-600 dark:text-sage-400 flex-shrink-0" />
+        ) : (
+          <span className="text-xl font-semibold text-sage-600 dark:text-sage-400">
+            {formatCurrency(totalAmount)}
+          </span>
+        )}
       </div>
-    </Card>
+    </CollapsibleCard>
   );
 }

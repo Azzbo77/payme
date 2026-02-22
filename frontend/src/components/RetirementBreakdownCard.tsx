@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Trash2, Edit2, Check, X, Loader, RefreshCw } from "lucide-react";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ConfirmModal } from "./ConfirmModal";
@@ -280,23 +280,20 @@ export function RetirementBreakdownCard({ onUpdate }: RetirementBreakdownCardPro
 
   if (loading) {
     return (
-      <Card>
+      <div className="bg-white dark:bg-charcoal-900 rounded-lg border border-sand-200 dark:border-charcoal-800 p-4">
         <div className="flex items-center justify-center py-8">
           <Loader size={20} className="animate-spin text-charcoal-400" />
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
     <>
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-              Retirement Savings Breakdown
-            </h3>
-          </div>
+      <CollapsibleCard
+        id="retirementBreakdownCard"
+        title="Retirement Savings Breakdown"
+        actions={
           <div className="flex gap-2">
             {breakdownItems.some((item) => item.type === "stock") && (
               <button
@@ -319,7 +316,8 @@ export function RetirementBreakdownCard({ onUpdate }: RetirementBreakdownCardPro
               </button>
             )}
           </div>
-        </div>
+        }
+      >
 
         {isAdding && (
           <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800">
@@ -547,7 +545,7 @@ export function RetirementBreakdownCard({ onUpdate }: RetirementBreakdownCardPro
             </div>
           )}
         </div>
-      </Card>
+      </CollapsibleCard>
 
       <ConfirmModal
         isOpen={deleteConfirmId !== null}

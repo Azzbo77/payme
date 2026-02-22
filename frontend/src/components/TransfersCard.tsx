@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Edit2, Check, X, Loader } from "lucide-react";
 import { ItemWithCategory, BudgetCategory, api } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
@@ -135,12 +135,12 @@ export function TransfersCard({
 
   return (
     <>
-    <Card className="col-span-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-          Transferred Items
-        </h3>
-        {!isReadOnly && !isAdding && transfersEnabled && (
+    <CollapsibleCard 
+      id="transfersCard" 
+      title="Transferred Items" 
+      className="col-span-full"
+      actions={
+        !isReadOnly && !isAdding && transfersEnabled && (
           <button
             onClick={() => {
               setIsAdding(true);
@@ -149,9 +149,9 @@ export function TransfersCard({
           >
             <Plus size={16} />
           </button>
-        )}
-      </div>
-
+        )
+      }
+    >
       {isAdding && (
         <div className="mb-4 p-4 bg-sand-100 dark:bg-charcoal-800">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -356,7 +356,7 @@ export function TransfersCard({
           </div>
         )}
       </div>
-    </Card>
+    </CollapsibleCard>
 
     <ConfirmModal
       isOpen={deleteConfirmId !== null}

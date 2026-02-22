@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, Edit2, Check, X, Settings, Loader, AlertCircle } from "lucide-react";
 import { MonthlyFixedExpense, FixedExpense, api } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
@@ -154,21 +154,20 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
 
   return (
     <>
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-            Fixed Expenses
-          </h3>
-          {!isReadOnly && (
+      <CollapsibleCard
+        id="fixedExpenses"
+        title="Fixed Expenses"
+        actions={
+          !isReadOnly && (
             <button
               onClick={() => setIsManaging(true)}
               className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
             >
               <Settings size={16} />
             </button>
-          )}
-        </div>
-
+          )
+        }
+      >
         <div className="space-y-2">
           {expenses.map((expense) => {
             const isOverridden = isPriceOverridden(expense);
@@ -210,7 +209,7 @@ export function FixedExpenses({ monthId, expenses, isReadOnly, onUpdate }: Fixed
             </span>
           </div>
         )}
-      </Card>
+      </CollapsibleCard>
 
       <Modal isOpen={isManaging} onClose={() => setIsManaging(false)} title="Manage Fixed Expenses">
         <div className="space-y-4">

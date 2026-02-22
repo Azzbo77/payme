@@ -18,6 +18,8 @@ interface UIPreferencesContextType {
   setRecurringItemsEnabled: (enabled: boolean) => void;
   stockTrackingEnabled: boolean;
   setStockTrackingEnabled: (enabled: boolean) => void;
+  collapsedCards: Record<string, boolean>;
+  setCardCollapsed: (cardId: string, collapsed: boolean) => void;
 }
 
 const UIPreferencesContext = createContext<UIPreferencesContextType | undefined>(undefined);
@@ -129,7 +131,18 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     return false;
   });
 
-
+  const [collapsedCards, setCollapsedCardsState] = useState<Record<string, boolean>>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        const prefs = JSON.parse(stored);
+        return prefs.collapsedCards ?? {};
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  });
 
   const setTransfersEnabled = (enabled: boolean) => {
     setTransfersEnabledState(enabled);
@@ -198,8 +211,18 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, stockTrackingEnabled: enabled }));
   };
 
+  const setCardCollapsed = (cardId: string, collapsed: boolean) => {
+    setCollapsedCardsState((prev) => {
+      const updated = { ...prev, [cardId]: collapsed };
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const prefs = stored ? JSON.parse(stored) : {};
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prefs, collapsedCards: updated }));
+      return updated;
+    });
+  };
+
   return (
-    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, fixedExpensesEnabled, setFixedExpensesEnabled, recurringItemsEnabled, setRecurringItemsEnabled, stockTrackingEnabled, setStockTrackingEnabled }}>
+    <UIPreferencesContext.Provider value={{ transfersEnabled, setTransfersEnabled, retirementBreakdownEnabled, setRetirementBreakdownEnabled, recurringWagesEnabled, setRecurringWagesEnabled, currentAccountEnabled, setCurrentAccountEnabled, customSavingsGoalsEnabled, setCustomSavingsGoalsEnabled, fixedExpensesEnabled, setFixedExpensesEnabled, recurringItemsEnabled, setRecurringItemsEnabled, stockTrackingEnabled, setStockTrackingEnabled, collapsedCards, setCardCollapsed }}>
       {children}
     </UIPreferencesContext.Provider>
   );

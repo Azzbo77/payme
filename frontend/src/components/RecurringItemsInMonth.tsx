@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, Settings } from "lucide-react";
 import { Item, RecurringItem, api } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Button } from "./ui/Button";
 import { Modal } from "./ui/Modal";
 import { ConfirmModal } from "./ConfirmModal";
@@ -90,21 +90,20 @@ export function RecurringItemsInMonth({
 
   return (
     <>
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-            Recurring Items
-          </h3>
-          {!isReadOnly && (
+      <CollapsibleCard
+        id="recurringItemsInMonth"
+        title="Recurring Items"
+        actions={
+          !isReadOnly && (
             <button
               onClick={() => setIsManaging(true)}
               className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
             >
               <Settings size={16} />
             </button>
-          )}
-        </div>
-
+          )
+        }
+      >
         <div className="space-y-2">
           {recurringItems.map((item) => (
             <div
@@ -141,7 +140,7 @@ export function RecurringItemsInMonth({
             </span>
           </div>
         )}
-      </Card>
+      </CollapsibleCard>
 
       <Modal isOpen={isManaging} onClose={() => setIsManaging(false)} title="Manage Recurring Items">
         <div className="space-y-4">

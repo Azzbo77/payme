@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Vault, Pencil, Check, X, Info } from "lucide-react";
 import { api, MonthlySavings } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Modal } from "./ui/Modal";
@@ -96,23 +96,21 @@ export function SavingsCard({ monthId, initialSavings, isReadOnly, onSavingsChan
 
   return (
     <>
-    <Card className="!p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
-            Savings
-          </span>
+    <CollapsibleCard
+      id="savingsCard"
+      title="Savings"
+      icon={<Vault size={16} className="text-sage-600" />}
+      actions={
+        !isReadOnly && !isEditing ? (
           <button
-            onClick={() => setShowInfoModal(true)}
-            className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors touch-manipulation"
-            title="How this works"
+            onClick={startEdit}
+            className="p-1.5 text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-200 transition-colors touch-manipulation"
           >
-            <Info size={12} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
+            <Pencil size={14} />
           </button>
-        </div>
-        <Vault size={16} className="text-sage-600" />
-      </div>
-      
+        ) : null
+      }
+    >
       {isEditing ? (
         <div className="flex items-center gap-1 mb-3">
           <Input
@@ -140,12 +138,6 @@ export function SavingsCard({ monthId, initialSavings, isReadOnly, onSavingsChan
           <span className="text-lg sm:text-xl font-semibold text-sage-700 dark:text-sage-400">
             {formatCurrency(savings)}
           </span>
-          <button
-            onClick={startEdit}
-            className="p-1.5 text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-200 transition-colors touch-manipulation"
-          >
-            <Pencil size={14} />
-          </button>
         </div>
       )}
 
@@ -202,7 +194,15 @@ export function SavingsCard({ monthId, initialSavings, isReadOnly, onSavingsChan
           {savingsGoal > 0 ? 'based on your goal' : 'no goal set'}
         </p>
       </div>
-    </Card>
+
+      <button
+        onClick={() => setShowInfoModal(true)}
+        className="mt-3 text-xs text-charcoal-500 hover:text-charcoal-700 dark:hover:text-sand-300 transition-colors flex items-center gap-1"
+      >
+        <Info size={12} />
+        How this works
+      </button>
+    </CollapsibleCard>
 
     <Modal isOpen={showInfoModal} onClose={() => setShowInfoModal(false)} title="How Savings Tracking Works">
       <div className="space-y-4">

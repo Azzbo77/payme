@@ -1,5 +1,5 @@
 import { TrendingUp, HelpCircle } from "lucide-react";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { useCurrency } from "../context/CurrencyContext";
 
 interface ProjectedSavingsCardProps {
@@ -13,18 +13,13 @@ export function ProjectedSavingsCard({ savings, remaining, onAnalyzeClick }: Pro
   const projected = savings + remaining;
 
   return (
-    <Card className="!p-3">
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-charcoal-500 dark:text-charcoal-400">
-          Projected
-        </span>
-        <TrendingUp size={14} className="text-sage-600" />
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-sage-700 dark:text-sage-400">
-          {formatCurrency(projected)}
-        </span>
-        {onAnalyzeClick && (
+    <CollapsibleCard 
+      id="projectedSavingsCard" 
+      title="Projected"
+      icon={<TrendingUp size={16} className="text-sage-600" />}
+      className="!p-3"
+      actions={
+        onAnalyzeClick && (
           <button
             onClick={onAnalyzeClick}
             className="p-0.5 hover:bg-sand-200 dark:hover:bg-charcoal-700 rounded transition-colors"
@@ -32,9 +27,13 @@ export function ProjectedSavingsCard({ savings, remaining, onAnalyzeClick }: Pro
           >
             <HelpCircle size={14} className="text-charcoal-400 hover:text-charcoal-600 dark:hover:text-charcoal-300" />
           </button>
-        )}
-      </div>
-    </Card>
+        )
+      }
+    >
+      <span className="text-sm font-semibold text-sage-700 dark:text-sage-400">
+        {formatCurrency(projected)}
+      </span>
+    </CollapsibleCard>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Target, Pencil, Check, X, Trash2, Plus, Loader } from "lucide-react";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { ProgressBar } from "./ui/ProgressBar";
 import { Button } from "./ui/Button";
@@ -105,15 +105,13 @@ export function CustomSavingsGoals() {
 
   return (
     <>
-    <Card className="!p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Target size={16} className="text-sage-600" />
-          <span className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-            Custom Savings Goals
-          </span>
-        </div>
-        {!isAddingNew && (
+    <CollapsibleCard 
+      id="customSavingsGoals" 
+      title="Custom Savings Goals" 
+      icon={<Target size={16} className="text-sage-600" />}
+      className="!p-4"
+      actions={
+        !isAddingNew && (
           <button
             onClick={() => setIsAddingNew(true)}
             className="p-1.5 text-sage-600 hover:bg-sage-100 dark:hover:bg-sage-900 rounded transition-colors touch-manipulation"
@@ -121,9 +119,9 @@ export function CustomSavingsGoals() {
           >
             <Plus size={16} />
           </button>
-        )}
-      </div>
-
+        )
+      }
+    >
       <div className="space-y-4">
         {goals.length === 0 && !isAddingNew && (
           <p className="text-xs text-charcoal-400 dark:text-charcoal-500 italic text-center py-4">
@@ -284,7 +282,7 @@ export function CustomSavingsGoals() {
           </div>
         )}
       </div>
-    </Card>
+    </CollapsibleCard>
     <ConfirmModal
       isOpen={deleteConfirmId !== null}
       title="Delete Savings Goal"

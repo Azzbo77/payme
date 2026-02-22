@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Edit2, Check, X, Settings, Loader } from "lucide-react";
 import { MonthlyBudgetWithCategory, BudgetCategory, api } from "../api/client";
-import { Card } from "./ui/Card";
+import { CollapsibleCard } from "./ui/CollapsibleCard";
 import { Input } from "./ui/Input";
 import { Button } from "./ui/Button";
 import { ProgressBar } from "./ui/ProgressBar";
@@ -138,19 +138,18 @@ export function BudgetSection({
 
   return (
     <>
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-charcoal-700 dark:text-sand-200">
-            Budget
-          </h3>
+      <CollapsibleCard
+        id="budgetSection"
+        title="Budget"
+        actions={
           <button
             onClick={() => setIsManaging(true)}
             className="p-1 hover:bg-sand-200 dark:hover:bg-charcoal-800 transition-colors"
           >
             <Settings size={16} />
           </button>
-        </div>
-
+        }
+      >
         <div className="space-y-4">
           {budgets.map((budget) => (
             <div key={budget.id}>
@@ -217,7 +216,7 @@ export function BudgetSection({
             </div>
           )}
         </div>
-      </Card>
+      </CollapsibleCard>
 
       <Modal isOpen={isManaging} onClose={() => setIsManaging(false)} title="Manage Categories">
         <p className="text-xs text-charcoal-500 dark:text-charcoal-400 mb-4">
