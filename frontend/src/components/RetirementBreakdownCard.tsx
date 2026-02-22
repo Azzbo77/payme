@@ -10,7 +10,11 @@ import { useUIPreferences } from "../context/UIPreferencesContext";
 import { api, RetirementBreakdownItem } from "../api/client";
 import { getStockPrice } from "../services/stockService";
 
-export function RetirementBreakdownCard() {
+interface RetirementBreakdownCardProps {
+  onUpdate?: () => void;
+}
+
+export function RetirementBreakdownCard({ onUpdate }: RetirementBreakdownCardProps) {
   const { formatCurrency } = useCurrency();
   const { retirementBreakdownEnabled, stockTrackingEnabled } = useUIPreferences();
   const { success, error } = useToast();
@@ -80,6 +84,7 @@ export function RetirementBreakdownCard() {
         setBreakdownItems([...breakdownItems, newItem]);
         success(`Added: ${label}`);
         resetForm();
+        onUpdate?.();
       } catch (err) {
         console.error("Error adding item:", err);
         error("Failed to add item");
@@ -115,6 +120,7 @@ export function RetirementBreakdownCard() {
         setBreakdownItems([...breakdownItems, newItem]);
         success(`Added ${quantity} shares of ${upperTicker} at ${formatUSDPrice(usdPrice)}`);
         resetForm();
+        onUpdate?.();
       } catch (err) {
         console.error("Error adding stock:", err);
         error(`Failed to add stock: ${err instanceof Error ? err.message : "Unknown error"}`);
@@ -199,6 +205,7 @@ export function RetirementBreakdownCard() {
           breakdownItems.map((i) => (i.id === id ? updated : i))
         );
         success(`Updated ${quantity} shares of ${ticker.toUpperCase()}`);
+        onUpdate?.();
       } else {
         const numAmount = parseFloat(amount);
         const updated = await api.retirementBreakdown.update(id, {
@@ -210,6 +217,7 @@ export function RetirementBreakdownCard() {
           breakdownItems.map((i) => (i.id === id ? updated : i))
         );
         success(`Updated: ${label}`);
+        onUpdate?.();
       }
       resetForm();
     } catch (err) {
@@ -230,6 +238,7 @@ export function RetirementBreakdownCard() {
       await api.retirementBreakdown.delete(deleteConfirmId);
       setBreakdownItems(breakdownItems.filter((item) => item.id !== deleteConfirmId));
       success("Item deleted");
+      onUpdate?.();
     } catch (err) {
       console.error("Failed to delete item:", err);
       error("Failed to delete item");

@@ -179,7 +179,7 @@ export function Dashboard({ onSettingsClick, onSummaryClick }: DashboardProps) {
 
         <ErrorBoundary section="Retirement Plan">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <RetirementBreakdownCard />
+            <RetirementBreakdownCard onUpdate={refresh} />
           </div>
         </ErrorBoundary>
       </div>
