@@ -1,5 +1,6 @@
 use axum::{
     extract::{Path, State},
+    http::StatusCode,
     Json,
 };
 use serde::{Deserialize, Serialize};
@@ -192,7 +193,7 @@ pub async fn delete_retirement_breakdown_item(
     State(pool): State<SqlitePool>,
     axum::Extension(claims): axum::Extension<Claims>,
     Path(id): Path<i64>,
-) -> Result<(), PaymeError> {
+) -> Result<StatusCode, PaymeError> {
     // Verify the item belongs to the user
     let existing: Option<(i64,)> = sqlx::query_as(
         "SELECT id FROM retirement_breakdown_items WHERE id = ? AND user_id = ?"
@@ -211,5 +212,5 @@ pub async fn delete_retirement_breakdown_item(
         .execute(&pool)
         .await?;
 
-    Ok(())
+    Ok(StatusCode::NO_CONTENT)
 }
