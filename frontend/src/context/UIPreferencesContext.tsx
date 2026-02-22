@@ -43,12 +43,12 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const prefs = JSON.parse(stored);
-        return prefs.retirementBreakdownEnabled ?? false;
+        return prefs.retirementBreakdownEnabled ?? true;
       } catch {
-        return false;
+        return true;
       }
     }
-    return false;
+    return true;
   });
 
   const [recurringWagesEnabled, setRecurringWagesEnabledState] = useState<boolean>(() => {
@@ -95,12 +95,12 @@ export function UIPreferencesProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const prefs = JSON.parse(stored);
-        return prefs.stockTrackingEnabled ?? true;
+        return prefs.stockTrackingEnabled ?? false;
       } catch {
-        return true;
+        return false;
       }
     }
-    return true;
+    return false;
   });
 
   const [fixedExpensesEnabled, setFixedExpensesEnabledState] = useState<boolean>(() => {
